@@ -32,6 +32,13 @@ void main() {
     expect(account.registrations.single.statusLabel, 'Being reviewed');
   });
 
+  test('a super admin is recognised from the account', () {
+    final admin = TrustUser.fromJson({'id': 1, 'name': 'Admin', 'email': 'a@example.org', 'role': 'super_admin', 'is_super_admin': true});
+    final team = TrustUser.fromJson({'id': 2, 'name': 'Team', 'email': 't@example.org', 'role': 'temple_admin'});
+    expect(admin.isSuperAdmin, isTrue);
+    expect(team.isSuperAdmin, isFalse);
+  });
+
   test('validation errors read field by field', () {
     const e = ApiException('Invalid', statusCode: 422, errors: {'email': ['Taken.']});
     expect(e.isValidation, isTrue);

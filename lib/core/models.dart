@@ -5,15 +5,25 @@ library;
 String? _s(dynamic v) => v?.toString();
 
 class TrustUser {
-  const TrustUser({required this.id, required this.name, required this.email, this.phone});
+  const TrustUser({required this.id, required this.name, required this.email, this.phone, this.role, this.isSuperAdmin = false});
 
-  factory TrustUser.fromJson(Map<String, dynamic> j) =>
-      TrustUser(id: j['id'] as int, name: '${j['name']}', email: '${j['email']}', phone: _s(j['phone']));
+  factory TrustUser.fromJson(Map<String, dynamic> j) => TrustUser(
+        id: j['id'] as int,
+        name: '${j['name']}',
+        email: '${j['email']}',
+        phone: _s(j['phone']),
+        role: _s(j['role']),
+        isSuperAdmin: j['is_super_admin'] == true,
+      );
 
   final int id;
   final String name;
   final String email;
   final String? phone;
+  final String? role;
+
+  /// Manages every temple and the approval queues.
+  final bool isSuperAdmin;
 }
 
 class TrustTemple {

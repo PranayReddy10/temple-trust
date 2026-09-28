@@ -34,6 +34,16 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
 
   void _reload() => setState(() => _future = _load());
 
+  Future<void> _setStatus(String status) async {
+    try {
+      await context.read<Session>().api.patch('admin/temples/${widget.templeId}/status', {'status': status});
+      if (mounted) showMessage(context, 'Listing status updated.');
+      _reload();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
   Future<void> _open(Widget screen) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
     if (mounted) _reload();
@@ -42,7 +52,24 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(
+        title: Text(widget.title, overflow: TextOverflow.ellipsis),
+        actions: [
+          // A super admin moves a temple between draft, review and published.
+          if (context.watch<Session>().isSuperAdmin)
+            PopupMenuButton<String>(
+              tooltip: 'Listing status',
+              icon: const Icon(Icons.publish_outlined),
+              onSelected: _setStatus,
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'published', child: Text('Publish')),
+                PopupMenuItem(value: 'in_review', child: Text('Move to review')),
+                PopupMenuItem(value: 'draft', child: Text('Back to draft')),
+                PopupMenuItem(value: 'archived', child: Text('Archive')),
+              ],
+            ),
+        ],
+      ),
       body: FutureBuilder<TrustTemple>(
         future: _future,
         builder: (context, snap) {

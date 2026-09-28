@@ -26,6 +26,7 @@ class Session extends ChangeNotifier {
 
   bool get ready => _ready;
   bool get signedIn => api.token != null;
+  bool get isSuperAdmin => _account?.user.isSuperAdmin ?? false;
   TrustAccount? get account => _account;
   TrustOptions get options => _options ?? const TrustOptions({});
 

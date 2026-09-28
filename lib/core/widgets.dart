@@ -122,7 +122,7 @@ class StatusChip extends StatelessWidget {
   factory StatusChip.forStatus(String status, String label) {
     final c = switch (status) {
       'approved' || 'published' || 'confirmed' || 'verified' => const Color(0xFF2E7D55),
-      'pending' || 'pending_review' || 'pending_payment' => const Color(0xFFC9A227),
+      'pending' || 'pending_review' || 'pending_payment' || 'in_review' => const Color(0xFFC9A227),
       'rejected' || 'cancelled' || 'refunded' || 'duplicate' => const Color(0xFFB3261E),
       _ => const Color(0xFF6B7FA8),
     };

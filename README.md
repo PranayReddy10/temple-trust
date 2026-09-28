@@ -43,6 +43,21 @@ An account with no approved temple can see nothing but its own requests.
 Name, deity, classification and the trust level stay with the editorial team,
 as in the web portal.
 
+## Super admins
+
+Super admin accounts (the same as on `/admin`) sign in here too and get an
+admin home instead of the team's:
+
+| Screen | What it does |
+| --- | --- |
+| Waiting for you | Counts of requests to manage a temple, temples to list and events to review |
+| Requests to manage | Call the requester, then approve or reject with a reason |
+| Temples to list | Registrations from temple teams and suggestions from devotees, with photos: list as a draft, match to an existing temple, or reject |
+| Events to review | Publish or reject events temple teams sent |
+| All temples | Search and filter every temple, open any one with the full set of management screens, and publish, review, draft or archive it |
+
+Editor accounts keep using the admin panel on the web.
+
 ## Running
 
 ```bash

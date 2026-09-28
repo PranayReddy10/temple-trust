@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/brand.dart';
 import 'core/session.dart';
 import 'core/theme.dart';
+import 'features/admin/admin_home_screen.dart';
 import 'features/auth/welcome_screen.dart';
 import 'features/home/home_screen.dart';
 
@@ -32,6 +33,7 @@ class _Gate extends StatelessWidget {
     if (!session.ready) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return session.signedIn ? const HomeScreen() : const WelcomeScreen();
+    if (!session.signedIn) return const WelcomeScreen();
+    return session.isSuperAdmin ? const AdminHomeScreen() : const HomeScreen();
   }
 }

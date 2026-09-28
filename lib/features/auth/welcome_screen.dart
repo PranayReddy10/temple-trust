@@ -149,7 +149,7 @@ class _LoginFormState extends State<_LoginForm> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Already use the temple portal on the web? The same email and password work here.',
+              'Temple portal and super admin accounts sign in with the same email and password as on the web.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
