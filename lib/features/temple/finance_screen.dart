@@ -120,7 +120,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         ]),
                         const SizedBox(height: 12),
                         Text(
-                          'Devotees pay through the platform; it pays your temple once the seva day has passed, '
+                          'Devotees pay through the platform; it pays your temple in regular settlements, '
                           'less a ${_percent(balance['fee_percent'])} platform fee. '
                           '${rupees(upcoming['gross_paise'])} is already paid for ${_n(upcoming['bookings'])} bookings on days still ahead.',
                           style: theme.textTheme.bodySmall,
@@ -491,7 +491,7 @@ class _PayoutAccountScreenState extends State<PayoutAccountScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          const Text('The trust\'s own account. Settlements are transferred here once the seva day has passed. A change is checked by the platform, usually by calling you, before money is sent to it.'),
+          const Text('The trust\'s own account. Settlements are transferred here. A change is checked by the platform, usually by calling you, before money is sent to it.'),
           const SizedBox(height: 16),
           ApiTextField(controller: _name, label: 'Account holder name', field: 'account_name', error: _error),
           ApiTextField(
