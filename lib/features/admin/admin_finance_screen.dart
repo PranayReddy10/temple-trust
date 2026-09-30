@@ -37,30 +37,44 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     final api = context.read<Session>().api;
     final note = TextEditingController();
     final account = t['payout_account'] == null ? null : _map(t['payout_account']);
+    final ahead = _n(t['ahead_gross_paise']);
+    var all = true;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Settle with ${t['name']}'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${_n(t['ready_bookings'])} paid bookings up to yesterday. The temple gets ${rupees(t['ready_net_paise'])} '
-              'after a ${t['fee_percent']}% fee.'),
-          const SizedBox(height: 8),
-          Text(account == null || account['is_complete'] != true
-              ? 'No payout details yet: add them before you transfer.'
-              : account['is_verified'] == true
-                  ? 'Pays to a verified account.'
-                  : 'Payout details are NOT verified: call the temple before you transfer.'),
-          TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (the temple sees this)')),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Prepare')),
-        ],
+      builder: (c) => StatefulBuilder(
+        builder: (c, setDialog) => AlertDialog(
+          title: Text('Settle with ${t['name']}'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${_n(t['ready_bookings'])} paid bookings, ${rupees(t['ready_gross_paise'])} in all. '
+                'The temple gets ${rupees(t['ready_net_paise'])} after a ${t['fee_percent']}% fee.'),
+            if (ahead > 0)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: all,
+                onChanged: (v) => setDialog(() => all = v),
+                title: Text('Include ${rupees(ahead)} paid in advance'),
+                subtitle: Text(all
+                    ? 'Bookings for today and days ahead are paid out now and can no longer be cancelled.'
+                    : 'Only seva days up to yesterday; the rest waits for a later settlement.'),
+              ),
+            const SizedBox(height: 8),
+            Text(account == null || account['is_complete'] != true
+                ? 'No payout details yet: add them before you transfer.'
+                : account['is_verified'] == true
+                    ? 'Pays to a verified account.'
+                    : 'Payout details are NOT verified: call the temple before you transfer.'),
+            TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (the temple sees this)')),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Prepare')),
+          ],
+        ),
       ),
     );
     if (ok != true) return;
     try {
-      await api.post('admin/temples/${t['id']}/settlements', {if (note.text.trim().isNotEmpty) 'note': note.text.trim()});
+      await api.post('admin/temples/${t['id']}/settlements', {'all': all, if (note.text.trim().isNotEmpty) 'note': note.text.trim()});
       if (mounted) showMessage(context, 'Settlement prepared. Transfer it, then mark it paid with the UTR.');
       _reload();
     } catch (e) {
@@ -115,7 +129,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                       const Divider(height: 24),
                       Row(children: [
                         Expanded(child: Figure('This month', rupees(month['amount_paise']), caption: '${_n(month['bookings'])} bookings')),
-                        Expanded(child: Figure('Owed to temples', rupees(o['ready_net_paise']), caption: 'up to ${o['cutoff']}')),
+                        Expanded(child: Figure('Owed to temples', rupees(o['ready_net_paise']), caption: 'paid, not yet settled')),
                       ]),
                       const SizedBox(height: 12),
                       Row(children: [
@@ -141,7 +155,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                 ],
                 const SectionTitle('Ready to settle'),
                 if (owed.isEmpty)
-                  const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once a paid seva\'s day has passed.'))),
+                  const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once devotees pay for a seva.'))),
                 for (final t in owed)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
