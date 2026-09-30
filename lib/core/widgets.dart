@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'api_client.dart';
 import 'models.dart';
@@ -307,6 +308,40 @@ class DateField extends StatelessWidget {
         ),
         child: Text(value == null ? '—' : formatDate(value!)),
       ),
+    );
+  }
+}
+
+/// Paise from the API as rupees, the Indian way: ₹1,23,456.00.
+String rupees(dynamic paise) {
+  final p = (paise as num?)?.toInt() ?? 0;
+  return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2).format(p / 100);
+}
+
+/// A figure with its label, for money and counts on the finance screens.
+class Figure extends StatelessWidget {
+  const Figure(this.label, this.value, {super.key, this.caption, this.emphasis = false, this.color});
+
+  final String label;
+  final String value;
+  final String? caption;
+  final bool emphasis;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.bodySmall),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: (emphasis ? theme.textTheme.headlineSmall : theme.textTheme.titleMedium)?.copyWith(color: color, fontWeight: FontWeight.w700),
+        ),
+        if (caption != null) Text(caption!, style: theme.textTheme.bodySmall),
+      ],
     );
   }
 }

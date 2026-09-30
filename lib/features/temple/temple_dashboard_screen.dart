@@ -7,6 +7,7 @@ import '../../core/widgets.dart';
 import 'bookings_screen.dart';
 import 'closures_screen.dart';
 import 'events_screen.dart';
+import 'finance_screen.dart';
 import 'photos_screen.dart';
 import 'profile_edit_screen.dart';
 import 'reviews_screen.dart';
@@ -95,6 +96,29 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                     child: Text('Not yet visible to devotees. Fill in timings, sevas and photos; the editors publish it once reviewed.'),
                   ),
                 const SectionTitle('Today'),
+                // Who is coming today and what they paid, at a glance.
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _open(FinanceScreen(templeId: t.id, title: t.name)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(children: [
+                        Expanded(
+                          child: Figure(
+                            'Paid for today\'s sevas',
+                            rupees(s['amount_today_paise']),
+                            emphasis: true,
+                            color: Theme.of(context).colorScheme.primary,
+                            caption: '${n('bookings_today')} bookings · ${n('people_today')} people',
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ]),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 GridView.count(
                   crossAxisCount: 3,
                   shrinkWrap: true,
@@ -122,6 +146,7 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                 _Tile(Icons.local_fire_department_outlined, 'Pujas & sevas', '${n('sevas')} listed · fees and app booking', () => _open(SevasScreen(templeId: t.id))),
                 _Tile(Icons.photo_library_outlined, 'Photos', '${n('photos')} photos', () => _open(PhotosScreen(templeId: t.id))),
                 _Tile(Icons.confirmation_number_outlined, 'Seva bookings', 'Who is coming, by day', () => _open(BookingsScreen(templeId: t.id))),
+                _Tile(Icons.account_balance_wallet_outlined, 'Finance', 'Amounts by day, payouts, payout account', () => _open(FinanceScreen(templeId: t.id, title: t.name))),
                 _Tile(Icons.rate_review_outlined, 'Devotee reviews', 'Read and reply', () => _open(ReviewsScreen(templeId: t.id))),
               ],
             ),

@@ -6,6 +6,7 @@ import '../../core/session.dart';
 import '../../core/widgets.dart';
 import '../account/account_screen.dart';
 import '../counter/scan_screen.dart';
+import 'admin_finance_screen.dart';
 import 'admin_queues.dart';
 import 'all_temples_screen.dart';
 
@@ -77,6 +78,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 _Queue(Icons.how_to_reg_outlined, 'Requests to manage a temple', n(o['claims_pending']), () => _open(const ClaimsQueueScreen())),
                 _Queue(Icons.add_location_alt_outlined, 'Temples to list', n(o['registrations_pending']), () => _open(const RegistrationsQueueScreen())),
                 _Queue(Icons.celebration_outlined, 'Events to review', n(o['events_in_review']), () => _open(const EventsQueueScreen())),
+                const SectionTitle('Money'),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.account_balance_wallet_outlined, color: Theme.of(context).colorScheme.primary),
+                    title: const Text('Finance & settlements'),
+                    subtitle: const Text('Seva payments today, what each temple is owed, payouts to make'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _open(const AdminFinanceScreen()),
+                  ),
+                ),
                 const SectionTitle('Temples'),
                 Card(
                   child: ListTile(
