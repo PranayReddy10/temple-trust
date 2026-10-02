@@ -54,10 +54,13 @@ An account with no approved temple can see nothing but its own requests.
 Name, deity, classification and the trust level stay with the editorial team,
 as in the web portal.
 
-**Location is taken live.** Registering a temple, or changing its location,
+**Location is taken live.** Asking to manage a listed temple, registering a
+temple, or changing its location
 uses the phone's GPS at the temple ("Use my current location"); coordinates
 cannot be typed. The fix must be accurate to 150 m (mock locations are
-refused), and the server rejects a registration or location change without it.
+refused), and the server rejects a request, registration or location change
+without it. A request to manage a temple is also refused more than 500 m from
+the temple's map pin; staff see where each request was sent from.
 
 ## Super admins
 
