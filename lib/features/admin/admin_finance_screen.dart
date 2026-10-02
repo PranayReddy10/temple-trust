@@ -45,8 +45,13 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
         builder: (c, setDialog) => AlertDialog(
           title: Text('Settle with ${t['name']}'),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${_n(t['ready_bookings'])} paid bookings, ${rupees(t['ready_gross_paise'])} in all. '
+            Text('${_n(t['ready_bookings'])} paid items, ${rupees(t['ready_gross_paise'])} in all. '
                 'The temple gets ${rupees(t['ready_net_paise'])} after a ${t['fee_percent']}% fee.'),
+            if (_n(t['ready_donations_paise']) > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('Includes ${rupees(t['ready_donations_paise'])} in online hundi gifts, settled with the bookings and tickets.'),
+              ),
             if (ahead > 0)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -163,7 +168,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                       child: ListTile(
                         title: Text('${t['name']}'),
                         subtitle: Text([
-                          '${_n(t['ready_bookings'])} bookings',
+                          '${_n(t['ready_bookings'])} paid items',
                           'gets ${rupees(t['ready_net_paise'])}',
                           _payoutState(t['payout_account']),
                         ].join(' · ')),
