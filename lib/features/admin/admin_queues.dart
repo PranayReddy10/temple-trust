@@ -60,6 +60,7 @@ class ClaimsQueueScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text('${u['name']} · ${u['email']} · as ${c['role']}'),
                 if (c['note'] != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('“${c['note']}”')),
+                _askedFrom(context, c['location'] as Map?),
                 Row(children: [
                   _call(u['phone'] as String?),
                   const Spacer(),
@@ -210,4 +211,29 @@ class EventsQueueScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Where the person stood when they asked, with the map one tap away.
+Widget _askedFrom(BuildContext context, Map? loc) {
+  final theme = Theme.of(context);
+  if (loc == null) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text('No location sent with this request', style: theme.textTheme.bodySmall),
+    );
+  }
+  final distance = loc['distance_m'] as num?;
+  final near = distance != null && distance <= 500;
+  return Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: InkWell(
+      onTap: loc['map_url'] == null ? null : () => launchUrl(Uri.parse('${loc['map_url']}'), mode: LaunchMode.externalApplication),
+      child: Row(children: [
+        Icon(Icons.place_outlined, size: 18, color: distance == null ? theme.hintColor : (near ? Colors.green.shade700 : theme.colorScheme.error)),
+        const SizedBox(width: 6),
+        Expanded(child: Text('${loc['summary']}', style: theme.textTheme.bodySmall)),
+        if (loc['map_url'] != null) Text('Map', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary)),
+      ]),
+    ),
+  );
 }

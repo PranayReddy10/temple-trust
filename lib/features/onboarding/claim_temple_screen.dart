@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/live_location.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
@@ -140,6 +141,7 @@ class _ClaimSheet extends StatefulWidget {
 class _ClaimSheetState extends State<_ClaimSheet> {
   final _note = TextEditingController();
   String _role = 'owner';
+  LiveFix? _fix;
   bool _busy = false;
   ApiException? _error;
 
@@ -150,13 +152,17 @@ class _ClaimSheetState extends State<_ClaimSheet> {
   }
 
   Future<void> _send() async {
+    if (_fix == null) {
+      showMessage(context, 'Stand at the temple and tap "Use my current location" first.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     final session = context.read<Session>();
     try {
-      await session.api.post('claims', {'temple_id': widget.temple['id'], 'role': _role, 'note': _note.text.trim()});
+      await session.api.post('claims', {'temple_id': widget.temple['id'], 'role': _role, 'note': _note.text.trim(), ..._fix!.toFields()});
       await session.refresh();
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -171,32 +177,41 @@ class _ClaimSheetState extends State<_ClaimSheet> {
     final levels = context.watch<Session>().options.claimLevels;
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Manage ${widget.temple['name']}', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          OptionField(
-            label: 'You are',
-            options: levels.isEmpty ? const [Option('owner', 'Owner — the trust or temple office'), Option('manager', 'Manager — day-to-day staff')] : levels,
-            value: _role,
-            onChanged: (v) => setState(() => _role = '$v'),
-          ),
-          const SizedBox(height: 12),
-          ApiTextField(
-            controller: _note,
-            label: 'How are you connected to the temple?',
-            hint: 'e.g. Secretary of the temple trust since 2019; office phone 08743 232428',
-            field: 'note',
-            error: _error,
-            maxLines: 4,
-            required: true,
-          ),
-          if (_error != null && _error!.field('note') == null)
-            Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(_error!.details, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-          FilledButton(onPressed: _busy ? null : _send, child: Text(_busy ? 'Sending…' : 'Send request')),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Manage ${widget.temple['name']}', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            OptionField(
+              label: 'You are',
+              options: levels.isEmpty ? const [Option('owner', 'Owner — the trust or temple office'), Option('manager', 'Manager — day-to-day staff')] : levels,
+              value: _role,
+              onChanged: (v) => setState(() => _role = '$v'),
+            ),
+            const SizedBox(height: 12),
+            ApiTextField(
+              controller: _note,
+              label: 'How are you connected to the temple?',
+              hint: 'e.g. Secretary of the temple trust since 2019; office phone 08743 232428',
+              field: 'note',
+              error: _error,
+              maxLines: 4,
+              required: true,
+            ),
+            LiveLocationField(
+              value: _fix,
+              required: true,
+              error: _error?.field('latitude') ?? _error?.field('location_accuracy'),
+              onChanged: (f) => setState(() => _fix = f),
+            ),
+            const SizedBox(height: 12),
+            if (_error != null && _error!.field('note') == null && _error!.field('latitude') == null && _error!.field('location_accuracy') == null)
+              Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(_error!.details, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+            FilledButton(onPressed: _busy ? null : _send, child: Text(_busy ? 'Sending…' : 'Send request')),
+          ],
+        ),
       ),
     );
   }
