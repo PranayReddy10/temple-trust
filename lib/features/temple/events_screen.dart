@@ -44,20 +44,150 @@ class _EventsScreenState extends State<EventsScreen> {
         empty: 'No events yet. Add festivals, programs and announcements devotees should know about.',
         itemBuilder: (context, e, reload) {
           final status = (e['status'] as Map?) ?? const {};
+          final reg = (e['registration'] as Map?) ?? const {};
+          final summary = (e['registrations_summary'] as Map?) ?? const {};
+          final joinable = reg['enabled'] == true;
+          final tertiary = Theme.of(context).colorScheme.tertiary;
           return Card(
             clipBehavior: Clip.antiAlias,
-            child: ListTile(
-              leading: e['image_url'] == null
-                  ? const Icon(Icons.celebration_outlined)
-                  : ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network('${e['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
-              title: Text('${e['title']}'),
-              subtitle: Text([
-                '${e['date_label']}',
-                if (e['review_note'] != null) 'Editor: ${e['review_note']}',
-              ].join('\n')),
-              isThreeLine: e['review_note'] != null,
-              trailing: StatusChip.forStatus('${status['value']}', '${status['label'] ?? status['value']}'),
-              onTap: () => _edit(e),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              ListTile(
+                leading: e['image_url'] == null
+                    ? Icon(e['type'] == 'bhajan' ? Icons.music_note_outlined : Icons.celebration_outlined)
+                    : ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network('${e['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
+                title: Text('${e['title']}'),
+                subtitle: Text([
+                  '${e['date_label']}',
+                  if (e['group_name'] != null) '${e['group_name']}',
+                  if (e['review_note'] != null) 'Editor: ${e['review_note']}',
+                ].join('\n')),
+                isThreeLine: e['review_note'] != null || e['group_name'] != null,
+                trailing: StatusChip.forStatus('${status['value']}', '${status['label'] ?? status['value']}'),
+                onTap: () => _edit(e),
+              ),
+              if (e['type'] == 'bhajan' || e['recurrence'] == 'weekly' || joinable)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+                  child: Row(children: [
+                    Expanded(
+                      child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                        if (e['type'] == 'bhajan') StatusChip('Bhajan', color: tertiary),
+                        if (e['recurrence'] == 'weekly') const StatusChip('Every week'),
+                        if (joinable) StatusChip(reg['is_paid'] == true ? '${reg['price'] ?? 'Paid'}' : 'Free', color: const Color(0xFF2E7D55)),
+                        if (joinable) Text('${summary['going'] ?? reg['going'] ?? 0} going${summary['next_on'] != null ? ' on ${summary['next_on']}' : ''}', style: Theme.of(context).textTheme.bodySmall),
+                      ]),
+                    ),
+                    if (joinable)
+                      TextButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => EventAttendeesScreen(templeId: widget.templeId, eventId: (e['id'] as num).toInt(), title: '${e['title']}')),
+                        ),
+                        icon: const Icon(Icons.groups_outlined, size: 18),
+                        label: const Text('Attendees'),
+                      ),
+                  ]),
+                ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Who is coming to an event on one of its dates: "I'll join" and tickets,
+/// with what they paid.
+class EventAttendeesScreen extends StatefulWidget {
+  const EventAttendeesScreen({super.key, required this.templeId, required this.eventId, required this.title});
+
+  final int templeId;
+  final int eventId;
+  final String title;
+
+  @override
+  State<EventAttendeesScreen> createState() => _EventAttendeesScreenState();
+}
+
+class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
+  String? _date;
+  late Future<Json> _future = _load();
+
+  Future<Json> _load() async {
+    final res = await context.read<Session>().api.get('temples/${widget.templeId}/events/${widget.eventId}/registrations', {'date': _date});
+    return (res['data'] as Map).cast<String, dynamic>();
+  }
+
+  void _reload() => setState(() => _future = _load());
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
+      body: FutureBuilder<Json>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
+          final d = snap.data!;
+          final date = '${d['date']}';
+          final dates = <String>{date, for (final x in (d['dates'] as List? ?? const [])) '$x'}.toList()..sort();
+          final s = (d['summary'] as Map?) ?? const {};
+          final items = [for (final r in (d['items'] as List? ?? const [])) (r as Map).cast<String, dynamic>()];
+          final theme = Theme.of(context);
+          int n(String k) => (s[k] as num?)?.toInt() ?? 0;
+
+          return RefreshIndicator(
+            onRefresh: () async => _reload(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: date,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Date'),
+                  items: [for (final x in dates) DropdownMenuItem(value: x, child: Text(x))],
+                  onChanged: (v) {
+                    if (v == null || v == date) return;
+                    _date = v;
+                    _reload();
+                  },
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(children: [
+                      Row(children: [
+                        Expanded(child: Figure('Registrations', '${n('registrations')}', caption: '${n('received')} received')),
+                        Expanded(
+                          child: Figure('People', '${n('people')}', caption: s['capacity'] == null ? 'no limit' : 'of ${s['capacity']}'),
+                        ),
+                      ]),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(child: Figure('Amount', '${s['amount'] ?? rupees(s['amount_paise'])}', emphasis: true, color: theme.colorScheme.primary)),
+                      ]),
+                    ]),
+                  ),
+                ),
+                const SectionTitle('Who is coming'),
+                if (items.isEmpty)
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: Text('No one has joined for this date yet.', textAlign: TextAlign.center)),
+                for (final r in items)
+                  Card(
+                    child: ListTile(
+                      title: Text('${r['devotee_name'] ?? 'Devotee'} · ${r['people']} ${r['people'] == 1 ? 'person' : 'people'}'),
+                      subtitle: Text([
+                        if (r['devotee_phone'] != null) '${r['devotee_phone']}',
+                        '${r['amount'] ?? rupees(r['amount_paise'])}',
+                        'Ref ${r['reference']}',
+                      ].join(' · ')),
+                      trailing: StatusChip.forStatus('${(r['status'] as Map?)?['value']}', '${(r['status'] as Map?)?['label'] ?? ''}'),
+                    ),
+                  ),
+              ],
             ),
           );
         },
@@ -87,6 +217,15 @@ class _EventFormState extends State<EventForm> {
   late TimeOfDay? _endsAt = parseTime(widget.row?['ends_at']);
   late String _recurrence = '${widget.row?['recurrence'] ?? 'none'}';
   late bool _publish = ((widget.row?['status'] as Map?)?['value'] ?? 'published') != 'draft';
+  Json get _reg => (widget.row?['registration'] as Map?)?.cast<String, dynamic>() ?? const {};
+  late final _groupName = TextEditingController(text: widget.row?['group_name'] as String? ?? '');
+  late final _price = TextEditingController(text: _priceText(widget.row?['ticket_price']));
+  late final _capacity = TextEditingController(text: _reg['capacity']?.toString() ?? '');
+  late final _maxPeople = TextEditingController(text: '${_reg['max_people'] ?? 10}');
+  late final _songs = TextEditingController(text: widget.row?['songs_text'] as String? ?? '');
+  late final bool _hadSongs = _songs.text.trim().isNotEmpty;
+  late bool _openToAll = widget.row?['open_to_all'] ?? true;
+  late bool _registration = _reg['enabled'] == true;
   XFile? _image;
   bool _removeImage = false;
   bool _busy = false;
@@ -94,8 +233,9 @@ class _EventFormState extends State<EventForm> {
 
   @override
   void dispose() {
-    _title.dispose();
-    _description.dispose();
+    for (final c in [_title, _description, _groupName, _price, _capacity, _maxPeople, _songs]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -117,6 +257,15 @@ class _EventFormState extends State<EventForm> {
         'starts_at': _allDay ? null : formatTime(_startsAt),
         'ends_at': _allDay ? null : formatTime(_endsAt),
         'recurrence': _recurrence,
+        'group_name': _v(_groupName),
+        'open_to_all': _openToAll,
+        'registration_enabled': _registration,
+        // Kept as they are while the switch is off, so turning it back on
+        // finds the same price and limits.
+        'ticket_price': _v(_price) ?? 0,
+        'capacity': _v(_capacity),
+        'max_people_per_registration': _v(_maxPeople) ?? 10,
+        'songs': _v(_songs),
         'status': _publish ? 'published' : 'draft',
         'remove_image': _removeImage,
       }, files: [
@@ -136,8 +285,10 @@ class _EventFormState extends State<EventForm> {
     }
   }
 
+  String? _v(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+
   Future<void> _delete() async {
-    if (!await confirm(context, 'Delete this event?')) return;
+    if (!await confirm(context, 'Delete this event?', body: 'If devotees have tickets for it, set it back to draft instead.')) return;
     if (!mounted) return;
     try {
       await context.read<Session>().api.delete('temples/${widget.templeId}/events/${widget.row!['id']}');
@@ -150,6 +301,9 @@ class _EventFormState extends State<EventForm> {
   @override
   Widget build(BuildContext context) {
     final o = context.watch<Session>().options;
+    // Older servers may not list bhajan gatherings yet.
+    final types = [...o.eventTypes, if (!o.eventTypes.any((t) => t.value == 'bhajan')) const Option('bhajan', 'Bhajan gathering')];
+    final weekday = _from == null ? null : _weekdayNames[_from!.weekday - 1];
     final existingImage = widget.row?['image_url'];
     return Scaffold(
       appBar: AppBar(
@@ -159,14 +313,21 @@ class _EventFormState extends State<EventForm> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          OptionField(label: 'Type', options: o.eventTypes, value: _type, onChanged: (v) => setState(() => _type = '$v')),
+          OptionField(label: 'Type', options: types, value: _type, onChanged: (v) => setState(() => _type = '$v')),
           const SizedBox(height: 12),
           ApiTextField(controller: _title, label: 'Title', field: 'title', error: _error, required: true),
           ApiTextField(controller: _description, label: 'Description', field: 'description', error: _error, maxLines: 5),
+          ApiTextField(
+            controller: _groupName,
+            label: _type == 'bhajan' ? 'Bhajan mandali' : 'Group or organiser (optional)',
+            field: 'group_name',
+            error: _error,
+            hint: 'e.g. Sri Rama Bhajan Mandali',
+          ),
           Row(children: [
             Expanded(child: DateField(label: 'From', value: _from, onChanged: (d) => setState(() => _from = d))),
             const SizedBox(width: 12),
-            Expanded(child: DateField(label: 'To (optional)', value: _to, clearable: true, onChanged: (d) => setState(() => _to = d))),
+            Expanded(child: DateField(label: _recurrence == 'weekly' ? 'Last date (optional)' : 'To (optional)', value: _to, clearable: true, onChanged: (d) => setState(() => _to = d))),
           ]),
           SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('All day'), value: _allDay, onChanged: (v) => setState(() => _allDay = v)),
           if (!_allDay)
@@ -178,14 +339,50 @@ class _EventFormState extends State<EventForm> {
           const SizedBox(height: 12),
           OptionField(
             label: 'Repeats',
-            options: const [Option('none', 'One-off'), Option('yearly', 'Every year on these dates')],
+            options: const [Option('none', 'One-off'), Option('weekly', 'Every week'), Option('yearly', 'Every year on these dates')],
             value: _recurrence,
             onChanged: (v) => setState(() => _recurrence = '$v'),
           ),
-          const Padding(
-            padding: EdgeInsets.only(top: 6, left: 4),
-            child: Text('Festivals on the lunar calendar move each year; add those as separate entries.', style: TextStyle(fontSize: 12)),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _recurrence == 'weekly'
+                  ? 'Repeats every ${weekday ?? 'week'}, the weekday of the start date. The last date ends the series; leave it empty to keep it going.'
+                  : 'Festivals on the lunar calendar move each year; add those as separate entries.',
+              style: const TextStyle(fontSize: 12),
+            ),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Open to all'),
+            subtitle: const Text('Anyone may come, not only members.'),
+            value: _openToAll,
+            onChanged: (v) => setState(() => _openToAll = v),
+          ),
+          const SectionTitle('Joining in the app'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Devotees can join in the app'),
+            subtitle: const Text('Free: they tap "I\'ll join". With a price: they buy tickets, shown at the counter as a QR code.'),
+            value: _registration,
+            onChanged: (v) => setState(() => _registration = v),
+          ),
+          if (_registration) ...[
+            ApiTextField(
+              controller: _price,
+              label: 'Ticket price per person (₹)',
+              field: 'ticket_price',
+              error: _error,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              hint: 'Empty or 0 for free',
+            ),
+            ApiTextField(controller: _capacity, label: 'People per date (empty for no limit)', field: 'capacity', error: _error, keyboardType: TextInputType.number),
+            ApiTextField(controller: _maxPeople, label: 'Most people per registration', field: 'max_people_per_registration', error: _error, keyboardType: TextInputType.number),
+          ],
+          if (_type == 'bhajan' || _hadSongs) ...[
+            const SectionTitle('Songs'),
+            ApiTextField(controller: _songs, label: 'Songs', field: 'songs', error: _error, maxLines: 8, hint: 'One song per line'),
+          ],
           const SectionTitle('Image'),
           Row(children: [
             if (_image != null)
@@ -221,4 +418,13 @@ class _EventFormState extends State<EventForm> {
       ),
     );
   }
+}
+
+const _weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/// The editor's rupee price as typed: 100 rather than 100.0, empty when free.
+String _priceText(dynamic v) {
+  final p = (v as num?)?.toDouble() ?? 0;
+  if (p <= 0) return '';
+  return p == p.roundToDouble() ? p.toInt().toString() : p.toStringAsFixed(2);
 }

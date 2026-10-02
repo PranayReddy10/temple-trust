@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 import 'bookings_screen.dart';
+import 'donations_screen.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -89,9 +90,24 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      Expanded(child: Figure('Paid bookings', '${_n(month['bookings'])}', caption: '${_n(month['people'])} people')),
-                      Expanded(child: Figure('Paid by devotees', rupees(month['amount_paise']), emphasis: true)),
+                    child: Column(children: [
+                      Row(children: [
+                        Expanded(child: Figure('Paid bookings', '${_n(month['bookings'])}', caption: '${_n(month['people'])} people · ${rupees(month['amount_paise'])}')),
+                        Expanded(child: Figure('In all', rupees(month['total_paise'] ?? month['amount_paise']), emphasis: true)),
+                      ]),
+                      if (_n(_map(month['tickets'])['count']) > 0 || _n(_map(month['donations'])['count']) > 0) ...[
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          Expanded(
+                            child: Figure(
+                              'Event tickets',
+                              rupees(_map(month['tickets'])['amount_paise']),
+                              caption: '${_n(_map(month['tickets'])['count'])} · ${_n(_map(month['tickets'])['people'])} people',
+                            ),
+                          ),
+                          Expanded(child: Figure('Online hundi', rupees(_map(month['donations'])['amount_paise']), caption: '${_n(_map(month['donations'])['count'])} gifts')),
+                        ]),
+                      ],
                     ]),
                   ),
                 ),
@@ -109,7 +125,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
                               rupees(ready['net_paise']),
                               emphasis: true,
                               color: theme.colorScheme.primary,
-                              caption: '${_n(ready['bookings'])} bookings · ${rupees(ready['gross_paise'])} less ${rupees(ready['fee_paise'])} fee',
+                              caption: [
+                                '${_n(ready['bookings'])} bookings',
+                                if (_n(ready['tickets']) > 0) '${_n(ready['tickets'])} tickets',
+                                if (_n(ready['donations']) > 0) '${_n(ready['donations'])} hundi gifts',
+                                '${rupees(ready['gross_paise'])} less ${rupees(ready['fee_paise'])} fee',
+                              ].join(' · '),
                             ),
                           ),
                         ]),
@@ -121,12 +142,23 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         const SizedBox(height: 12),
                         Text(
                           'Devotees pay through the platform; it pays your temple in regular settlements, '
-                          'less a ${_percent(balance['fee_percent'])} platform fee. '
+                          'less a ${_percent(balance['fee_percent'])} platform fee'
+                          '${balance['donation_fee_percent'] != null ? ' (${_percent(balance['donation_fee_percent'])} on hundi gifts)' : ''}. '
                           '${rupees(upcoming['gross_paise'])} is already paid for ${_n(upcoming['bookings'])} bookings on days still ahead.',
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),
+                  ),
+                ),
+                const SectionTitle('Online hundi'),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.volunteer_activism_outlined, color: theme.colorScheme.primary),
+                    title: Text(f['accepts_donations'] == true ? 'Taking gifts in the app' : 'Not taking gifts in the app'),
+                    subtitle: Text('Today ${rupees(_map(day['donations'])['amount_paise'])} · this month ${rupees(_map(month['donations'])['amount_paise'])}'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _open(DonationsScreen(templeId: widget.templeId)),
                   ),
                 ),
                 SectionTitle(
@@ -171,6 +203,9 @@ class _DayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bySeva = [for (final r in (day['by_seva'] as List? ?? const [])) _map(r)];
+    final tickets = _map(day['tickets']);
+    final gifts = _map(day['donations']);
+    final hasMore = _n(tickets['count']) > 0 || _n(gifts['count']) > 0;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -182,7 +217,15 @@ class _DayCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Expanded(child: Figure('Amount paid', rupees(day['amount_paise']), emphasis: true, color: theme.colorScheme.primary)),
+                Expanded(
+                  child: Figure(
+                    hasMore ? 'Paid in all' : 'Amount paid',
+                    rupees(day['total_paise'] ?? day['amount_paise']),
+                    emphasis: true,
+                    color: theme.colorScheme.primary,
+                    caption: hasMore ? 'sevas ${rupees(day['amount_paise'])}' : null,
+                  ),
+                ),
                 Expanded(child: Figure('Booked', '${_n(day['bookings'])}', caption: '${_n(day['people'])} people')),
               ]),
               const SizedBox(height: 12),
@@ -214,6 +257,12 @@ class _DayCard extends StatelessWidget {
                     ]),
                   ),
               ],
+              if (hasMore) ...[
+                const Divider(height: 24),
+                if (_n(tickets['count']) > 0)
+                  _line(theme, 'Event tickets', '${_n(tickets['count'])} · ${_n(tickets['people'])} ppl', tickets['amount_paise']),
+                if (_n(gifts['count']) > 0) _line(theme, 'Online hundi', '${_n(gifts['count'])} gifts', gifts['amount_paise']),
+              ],
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
@@ -226,6 +275,16 @@ class _DayCard extends StatelessWidget {
     );
   }
 }
+
+Widget _line(ThemeData theme, String label, String counts, dynamic paise) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(children: [
+        Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+        Text(counts, style: theme.textTheme.bodySmall),
+        const SizedBox(width: 12),
+        SizedBox(width: 96, child: Text(rupees(paise), textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600))),
+      ]),
+    );
 
 class _SettlementTile extends StatelessWidget {
   const _SettlementTile(this.s, {required this.onTap});
@@ -242,7 +301,7 @@ class _SettlementTile extends StatelessWidget {
         child: ListTile(
           title: Text('${rupees(s['net_paise'])} · ${s['period']}'),
           subtitle: Text([
-            '${_n(s['bookings_count'])} bookings',
+            '${s['items'] ?? '${_n(s['bookings_count'])} bookings'}',
             if (s['transaction_ref'] != null) 'UTR ${s['transaction_ref']}',
             if (s['paid_at'] != null) 'paid ${_date(s['paid_at'])}',
           ].join(' · ')),
@@ -374,6 +433,9 @@ class SettlementDetails extends StatelessWidget {
     final s = settlement;
     final status = _map(s['status']);
     final bookings = [for (final b in (s['bookings'] as List? ?? const [])) _map(b)];
+    final tickets = [for (final t in (s['tickets'] as List? ?? const [])) _map(t)];
+    final gifts = [for (final g in (s['donations'] as List? ?? const [])) _map(g)];
+    final breakdown = _map(s['breakdown']);
     final theme = Theme.of(context);
 
     Widget row(String label, String value) => Padding(
@@ -399,9 +461,16 @@ class SettlementDetails extends StatelessWidget {
               Figure('To the temple', rupees(s['net_paise']), emphasis: true, color: theme.colorScheme.primary),
               const Divider(height: 24),
               row('Seva days', '${s['period']}'),
-              row('Bookings', '${_n(s['bookings_count'])}'),
+              if (s['items'] != null) row('Covers', '${s['items']}') else row('Bookings', '${_n(s['bookings_count'])}'),
+              for (final (k, label) in const [('bookings', 'Seva bookings'), ('tickets', 'Event tickets'), ('donations', 'Hundi gifts')])
+                if (_n(_map(breakdown[k])['count']) > 0)
+                  row(label, '${_n(_map(breakdown[k])['count'])} · ${rupees(_map(breakdown[k])['amount_paise'])}'),
               row('Paid by devotees', rupees(s['gross_paise'])),
-              row('Platform fee', '${rupees(s['fee_paise'])} (${_percent(s['fee_percent'])})'),
+              row(
+                'Platform fee',
+                '${rupees(s['fee_paise'])} (${_percent(s['fee_percent'])}'
+                    '${s['donation_fee_percent'] != null && _n(_map(breakdown['donations'])['count']) > 0 ? '; ${_percent(s['donation_fee_percent'])} on hundi' : ''})',
+              ),
               if (s['method_label'] != null) row('Paid by', '${s['method_label']}'),
               if (s['transaction_ref'] != null) row('Reference (UTR)', '${s['transaction_ref']}'),
               if (s['paid_at'] != null) row('Paid on', _date(s['paid_at'])),
@@ -420,6 +489,34 @@ class SettlementDetails extends StatelessWidget {
                 title: Text('${b['devotee_name']} · ${_n(b['people'])} ${_n(b['people']) == 1 ? 'person' : 'people'}'),
                 subtitle: Text('${b['seva'] ?? ''} · ${b['booked_for']} · Ref ${b['reference']}'),
                 trailing: Text(rupees(b['amount_paise']), style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+        ],
+        if (tickets.isNotEmpty) ...[
+          const SectionTitle('Event tickets in this payout'),
+          for (final t in tickets)
+            Card(
+              child: ListTile(
+                dense: true,
+                title: Text('${t['devotee_name'] ?? 'Devotee'} · ${_n(t['people'])} ${_n(t['people']) == 1 ? 'person' : 'people'}'),
+                subtitle: Text('${t['event'] ?? ''} · ${t['occurs_on']} · Ref ${t['reference']}'),
+                trailing: Text(rupees(t['amount_paise']), style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+        ],
+        if (gifts.isNotEmpty) ...[
+          const SectionTitle('Hundi gifts in this payout'),
+          for (final g in gifts)
+            Card(
+              child: ListTile(
+                dense: true,
+                title: Text('${g['donor'] ?? 'A devotee'}'),
+                subtitle: Text([
+                  if (_map(g['purpose'])['label'] != null) '${_map(g['purpose'])['label']}',
+                  if (g['paid_on'] != null) '${g['paid_on']}',
+                  'Ref ${g['reference']}',
+                ].join(' · ')),
+                trailing: Text(rupees(g['amount_paise']), style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
         ],

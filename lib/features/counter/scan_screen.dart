@@ -7,7 +7,8 @@ import '../../core/session.dart';
 
 typedef Json = Map<String, dynamic>;
 
-/// At the counter: scan a devotee's seva booking and receive them, or look
+/// At the counter: scan a devotee's seva booking or event ticket and receive
+/// them, or look
 /// at the passport they show. A code from another temple reads as unknown.
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -117,7 +118,7 @@ class _ScanScreenState extends State<ScanScreen> {
         children: [
           SegmentedButton<bool>(
             segments: const [
-              ButtonSegment(value: false, label: Text('Seva booking'), icon: Icon(Icons.confirmation_number_outlined)),
+              ButtonSegment(value: false, label: Text('Seva / event ticket'), icon: Icon(Icons.confirmation_number_outlined)),
               ButtonSegment(value: true, label: Text('Passport'), icon: Icon(Icons.badge_outlined)),
             ],
             selected: {_passport},
@@ -149,7 +150,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 child: TextField(
                   controller: _typed,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(hintText: _passport ? 'Passport code' : 'Booking reference'),
+                  decoration: InputDecoration(hintText: _passport ? 'Passport code' : 'Booking or ticket reference'),
                   onSubmitted: _lookup,
                 ),
               ),
@@ -171,13 +172,16 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Widget _bookingCard(Json b) {
     final puja = (b['puja'] as Map?) ?? const {};
+    final event = (b['event'] as Map?) ?? const {};
+    final isTicket = b['kind'] == 'event';
+    final what = isTicket ? 'ticket' : 'booking';
     final temple = (b['temple'] as Map?) ?? const {};
     final status = '${(b['status'] as Map?)?['value']}';
     final (color, icon, title) = switch (_outcome) {
       'verified' => (const Color(0xFF2E7D55), Icons.check_circle, 'Received — welcome them in'),
       'already_verified' => (const Color(0xFFC9A227), Icons.warning_amber_rounded, 'Already used${b['verified_at'] != null ? ' at ${b['verified_at']}' : ''}'),
       _ => status == 'confirmed'
-          ? (Theme.of(context).colorScheme.primary, Icons.confirmation_number_outlined, 'Valid booking')
+          ? (Theme.of(context).colorScheme.primary, Icons.confirmation_number_outlined, 'Valid $what')
           : (Theme.of(context).colorScheme.error, Icons.block, '${(b['status'] as Map?)?['label']}'),
     };
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -186,13 +190,14 @@ class _ScanScreenState extends State<ScanScreen> {
         icon: icon,
         title: title,
         body: [
-          '${puja['name']} · ${temple['name']}',
-          'For ${b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' · ${(b['slot'] as Map)['label']}' : ''} · ${b['people']} ${b['people'] == 1 ? 'person' : 'people'}',
+          '${isTicket ? event['title'] : puja['name']} · ${temple['name']}',
+          if (isTicket && event['group_name'] != null) '${event['group_name']}',
+          'For ${isTicket ? (b['occurs_on'] ?? b['booked_for']) : b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' · ${(b['slot'] as Map)['label']}' : ''} · ${b['people']} ${b['people'] == 1 ? 'person' : 'people'}',
           '${b['devotee_name'] ?? ''}${b['devotee_phone'] != null ? ' · ${b['devotee_phone']}' : ''}',
           if (b['gotram'] != null) 'Gotram: ${b['gotram']}',
           if (b['nakshatram'] != null) 'Nakshatram: ${b['nakshatram']}',
           if (b['note'] != null) 'Note: ${b['note']}',
-          '${b['amount'] ?? ''} · Ref ${b['reference']}',
+          '${b['amount'] ?? ''} · ${isTicket ? 'Ticket' : 'Ref'} ${b['reference']}',
         ].join('\n'),
       ),
       if (_outcome == null && status == 'confirmed')

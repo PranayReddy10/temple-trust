@@ -44,8 +44,10 @@ An account with no approved temple can see nothing but its own requests.
 | Photos | Upload, choose the cover, hide or show, caption, delete |
 | Seva bookings | By day, with gotram, nakshatram, phone and payment, and the day's totals: booked, people, received, amount paid |
 | Finance | Any day's bookings and amount, by seva; the month; what is due to the temple after the platform fee, being paid and paid to date; every payout with its bank reference (UTR) and the bookings it covers; the payout bank account or UPI id (owner only, verified by staff after any change) |
+| Events: bhajan gatherings & tickets | Type *Bhajan gathering*, every-week repetition, mandali name, open to all, song list, and *Devotees can join in the app*: free "I'll join" or a ticket price per person with a limit per date. Each event shows who is going; **Attendees** lists them by date with the amount paid |
+| Online hundi | Gifts devotees made in the app, today / this month / in all, with donor ("A devotee" when anonymous) and purpose; the owner switches the hundi on or off |
 | Devotee reviews | Read, and reply as the temple |
-| Scan at counter | Scan a devotee's seva ticket and mark them received (refused the second time, before its day and after it), or scan a devotee's passport and **mark visited today**, which puts the temple's verified stamp in their passport |
+| Scan at counter | Scan a devotee's seva or event ticket and mark them received (refused the second time, before its day and after it), or scan a devotee's passport and **mark visited today**, which puts the temple's verified stamp in their passport |
 | Temple QR code | The temple's signed check-in code to show at the gate (devotees scan it for their passport stamp), with the printable A4 poster and the link |
 
 Name, deity, classification and the trust level stay with the editorial team,

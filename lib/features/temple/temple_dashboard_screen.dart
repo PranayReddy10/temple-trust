@@ -7,6 +7,7 @@ import '../../core/widgets.dart';
 import '../counter/scan_screen.dart';
 import 'bookings_screen.dart';
 import 'closures_screen.dart';
+import 'donations_screen.dart';
 import 'events_screen.dart';
 import 'finance_screen.dart';
 import 'photos_screen.dart';
@@ -144,14 +145,15 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                 _Tile(Icons.edit_note, 'Temple details', 'Contact, location, visitor rules', () => _open(ProfileEditScreen(temple: t))),
                 _Tile(Icons.schedule, 'Darshan timings', 'Daily and weekday timings', () => _open(TimingsScreen(templeId: t.id))),
                 _Tile(Icons.event_busy_outlined, 'Closures', 'Eclipses, renovations, special days', () => _open(ClosuresScreen(templeId: t.id))),
-                _Tile(Icons.celebration_outlined, 'Events & festivals', 'Festivals, programs, announcements', () => _open(EventsScreen(templeId: t.id))),
+                _Tile(Icons.celebration_outlined, 'Events & festivals', 'Festivals, bhajans, programs; tickets and who is coming', () => _open(EventsScreen(templeId: t.id))),
                 _Tile(Icons.local_fire_department_outlined, 'Pujas & sevas', '${n('sevas')} listed · fees and app booking', () => _open(SevasScreen(templeId: t.id))),
                 _Tile(Icons.photo_library_outlined, 'Photos', '${n('photos')} photos', () => _open(PhotosScreen(templeId: t.id))),
                 _Tile(Icons.confirmation_number_outlined, 'Seva bookings', 'Who is coming, by day', () => _open(BookingsScreen(templeId: t.id))),
                 _Tile(Icons.account_balance_wallet_outlined, 'Finance', 'Amounts by day, payouts, payout account', () => _open(FinanceScreen(templeId: t.id, title: t.name))),
+                _Tile(Icons.volunteer_activism_outlined, 'Online hundi', 'Gifts from devotees in the app', () => _open(DonationsScreen(templeId: t.id))),
                 _Tile(Icons.rate_review_outlined, 'Devotee reviews', 'Read and reply', () => _open(ReviewsScreen(templeId: t.id))),
                 _Tile(Icons.qr_code_2, 'Temple QR code', 'Check-in code for the gate; print the poster', () => _open(TempleQrScreen(templeId: t.id, title: t.name))),
-                _Tile(Icons.qr_code_scanner, 'Scan at counter', 'Seva tickets, and stamping a devotee\'s passport', () => _open(const ScanScreen())),
+                _Tile(Icons.qr_code_scanner, 'Scan at counter', 'Seva bookings, event tickets, and stamping a devotee\'s passport', () => _open(const ScanScreen())),
               ],
             ),
           );

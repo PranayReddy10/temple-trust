@@ -40,16 +40,28 @@ class _BookingsScreenState extends State<BookingsScreen> {
     if (_day == null || s == null) return null;
     int n(String k) => (s[k] as num?)?.toInt() ?? 0;
     final theme = Theme.of(context);
+    final tickets = (s['tickets'] as Map?) ?? const {};
+    final gifts = (s['donations'] as Map?) ?? const {};
+    int c(Map m) => (m['count'] as num?)?.toInt() ?? 0;
+    // Event tickets and hundi gifts the same day, for the full picture.
+    final extras = [
+      if (c(tickets) > 0) '${c(tickets)} event tickets ${rupees(tickets['amount_paise'])}',
+      if (c(gifts) > 0) '${c(gifts)} hundi gifts ${rupees(gifts['amount_paise'])}',
+      if (c(tickets) > 0 || c(gifts) > 0) 'in all ${rupees(s['total_paise'])}',
+    ];
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Card(
         color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Row(children: [
-            Expanded(child: Figure('Booked', '${n('bookings')}', caption: '${n('people')} people')),
-            Expanded(child: Figure('Received', '${n('received')}', caption: '${n('to_receive')} to come')),
-            Expanded(child: Figure('Amount paid', rupees(s['amount_paise']), color: theme.colorScheme.primary)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Figure('Booked', '${n('bookings')}', caption: '${n('people')} people')),
+              Expanded(child: Figure('Received', '${n('received')}', caption: '${n('to_receive')} to come')),
+              Expanded(child: Figure('Amount paid', rupees(s['amount_paise']), color: theme.colorScheme.primary)),
+            ]),
+            if (extras.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(extras.join(' · '), style: theme.textTheme.bodySmall)),
           ]),
         ),
       ),
