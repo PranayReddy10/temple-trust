@@ -6,7 +6,8 @@ class Brand {
 
   static const String name = String.fromEnvironment('BRAND_NAME', defaultValue: 'Darshan Saathi');
 
-  static const String appName = String.fromEnvironment('TRUST_APP_NAME', defaultValue: 'Temple Trust');
+  /// The name under the icon and on the welcome screen.
+  static const String appName = String.fromEnvironment('TRUST_APP_NAME', defaultValue: 'Darshan Saathi Trust');
 
   static const String tagline = 'Manage your temple on $name';
 

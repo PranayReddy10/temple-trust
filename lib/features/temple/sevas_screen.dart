@@ -103,6 +103,10 @@ class _SevaFormState extends State<SevaForm> {
   late bool _appBooking = _raw['app_booking_enabled'] == true;
   late bool _perPerson = _app['fee_per_person'] ?? true;
   late bool _published = _r['is_published'] ?? true;
+  /// Time slots, like show times: devotees pick one when they book.
+  late final List<_Slot> _slots = [
+    for (final r in (_raw['slots'] as List? ?? const [])) _Slot.fromJson((r as Map).cast<String, dynamic>()),
+  ];
   XFile? _image;
   bool _busy = false;
   ApiException? _error;
@@ -135,6 +139,10 @@ class _SevaFormState extends State<SevaForm> {
         'app_booking_enabled': _appBooking,
         'fee_per_person': _perPerson,
         'is_published': _published,
+        // Sent whole: what is sent replaces what was there. An empty value
+        // clears them all.
+        if (_slots.isEmpty) 'slots': null,
+        for (final (i, slot) in _slots.indexed) ...slot.fields(i),
       }, files: [
         if (_image != null) UploadFile(field: 'image', filename: _image!.name, bytes: await _image!.readAsBytes()),
       ]);
@@ -163,6 +171,89 @@ class _SevaFormState extends State<SevaForm> {
     } catch (e) {
       if (mounted) showError(context, e);
     }
+  }
+
+  /// Fills the slots for a stretch of the day, e.g. 9:00 to 12:00 hourly,
+  /// 15 people each.
+  Future<void> _makeSlots() async {
+    var from = const TimeOfDay(hour: 9, minute: 0);
+    var to = const TimeOfDay(hour: 12, minute: 0);
+    final every = TextEditingController(text: '60');
+    final people = TextEditingController(text: '15');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('Make slots'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TimeField(label: 'From', value: from, onChanged: (t) => set(() => from = t ?? from)),
+            const SizedBox(height: 8),
+            TimeField(label: 'To', value: to, onChanged: (t) => set(() => to = t ?? to)),
+            TextField(controller: every, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Each slot (minutes)')),
+            TextField(controller: people, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'People per slot (empty for no limit)')),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Make')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    final step = int.tryParse(every.text.trim()) ?? 60;
+    final cap = int.tryParse(people.text.trim());
+    final end = to.hour * 60 + to.minute;
+    if (step < 5) return;
+    final made = <_Slot>[];
+    for (var m = from.hour * 60 + from.minute; m + step <= end && made.length < 48; m += step) {
+      made.add(_Slot(from: TimeOfDay(hour: m ~/ 60, minute: m % 60), to: TimeOfDay(hour: (m + step) ~/ 60, minute: (m + step) % 60), capacity: cap));
+    }
+    if (made.isEmpty) {
+      if (mounted) showMessage(context, 'No slot fits between those times.');
+      return;
+    }
+    setState(() => _slots
+      ..clear()
+      ..addAll(made));
+  }
+
+  Future<void> _editSlot(int? index) async {
+    final slot = index == null ? _Slot(from: const TimeOfDay(hour: 9, minute: 0)) : _slots[index].copy();
+    final cap = TextEditingController(text: slot.capacity?.toString() ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: Text(index == null ? 'Add a slot' : 'Edit slot'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TimeField(label: 'Starts', value: slot.from, onChanged: (t) => set(() => slot.from = t ?? slot.from)),
+              const SizedBox(height: 8),
+              TimeField(label: 'Ends (optional)', value: slot.to, onChanged: (t) => set(() => slot.to = t)),
+              TextField(controller: cap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'People a day (empty for no limit)')),
+              const SizedBox(height: 12),
+              const Text('Days (none chosen: every day)'),
+              Wrap(spacing: 6, children: [
+                for (var d = 0; d < 7; d++)
+                  FilterChip(
+                    label: Text(_weekdays[d]),
+                    selected: slot.days.contains(d),
+                    onSelected: (on) => set(() => on ? slot.days.add(d) : slot.days.remove(d)),
+                  ),
+              ]),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Taking bookings'), value: slot.active, onChanged: (v) => set(() => slot.active = v)),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Done')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    slot.capacity = int.tryParse(cap.text.trim());
+    setState(() => index == null ? _slots.add(slot) : _slots[index] = slot);
   }
 
   Widget _f(String k, String label, {int lines = 1, TextInputType? type, bool required = false, String? hint}) =>
@@ -224,6 +315,26 @@ class _SevaFormState extends State<SevaForm> {
             _f('max_people_per_booking', 'Most people per booking', type: TextInputType.number),
             _f('booking_advance_days', 'Bookable up to (days ahead)', type: TextInputType.number),
             _f('booking_capacity_per_day', 'Bookings per day (empty for no limit)', type: TextInputType.number),
+            SectionTitle(
+              'Time slots',
+              trailing: TextButton.icon(onPressed: _makeSlots, icon: const Icon(Icons.auto_awesome, size: 18), label: const Text('Make slots')),
+            ),
+            const Text('Optional. With slots, devotees choose a time (like a show time) and each slot fills up on its own.'),
+            const SizedBox(height: 8),
+            for (final (i, slot) in _slots.indexed)
+              Card(
+                child: ListTile(
+                  title: Text('${formatTime(slot.from)}${slot.to == null ? '' : ' – ${formatTime(slot.to)}'}${slot.active ? '' : ' (off)'}'),
+                  subtitle: Text([
+                    slot.capacity == null ? 'No limit' : '${slot.capacity} people a day',
+                    slot.days.isEmpty || slot.days.length == 7 ? 'every day' : [for (final d in slot.days..sort()) _weekdays[d]].join(', '),
+                  ].join(' · ')),
+                  onTap: () => _editSlot(i),
+                  trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _slots.removeAt(i))),
+                ),
+              ),
+            OutlinedButton.icon(onPressed: () => _editSlot(null), icon: const Icon(Icons.add), label: const Text('Add a slot')),
+            const SizedBox(height: 12),
             _f('booking_instructions', 'Instructions for devotees', lines: 3, hint: 'e.g. Come to counter 3 with this code 30 minutes early'),
           ],
           const SectionTitle('Publishing'),
@@ -234,4 +345,39 @@ class _SevaFormState extends State<SevaForm> {
       ),
     );
   }
+}
+
+const _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/// One time slot as the form edits it; days are 0 (Sunday) to 6.
+class _Slot {
+  _Slot({required this.from, this.to, this.capacity, List<int>? days, this.active = true, this.id}) : days = days ?? [];
+
+  factory _Slot.fromJson(Json j) => _Slot(
+        id: (j['id'] as num?)?.toInt(),
+        from: parseTime(j['starts_at']) ?? const TimeOfDay(hour: 9, minute: 0),
+        to: parseTime(j['ends_at']),
+        capacity: (j['capacity'] as num?)?.toInt(),
+        days: [for (final d in (j['days'] as List? ?? const [])) (d as num).toInt()],
+        active: j['is_active'] != false,
+      );
+
+  final int? id;
+  TimeOfDay from;
+  TimeOfDay? to;
+  int? capacity;
+  final List<int> days;
+  bool active;
+
+  _Slot copy() => _Slot(id: id, from: from, to: to, capacity: capacity, days: [...days], active: active);
+
+  /// As multipart fields: slots[0][starts_at] and so on.
+  Map<String, dynamic> fields(int i) => {
+        if (id != null) 'slots[$i][id]': id,
+        'slots[$i][starts_at]': formatTime(from),
+        if (to != null) 'slots[$i][ends_at]': formatTime(to),
+        if (capacity != null) 'slots[$i][capacity]': capacity,
+        for (final (k, d) in days.indexed) 'slots[$i][days][$k]': d,
+        'slots[$i][is_active]': active,
+      };
 }

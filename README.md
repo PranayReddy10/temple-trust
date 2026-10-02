@@ -1,4 +1,4 @@
-# Temple Trust — app for temple teams
+# Darshan Saathi Trust — app for temple teams
 
 The app a temple's own people — trust, committee, temple office — use to run
 their temple's listing on **Darshan Saathi**. One Flutter codebase for
@@ -9,6 +9,12 @@ temple.darshansaathi.com) and talks to the same Laravel backend in
 [`temple-website`](https://github.com/PranayReddy10/temple-website) through
 `/api/v1/trust`. The devotee app is
 [`temple-app`](https://github.com/PranayReddy10/temple-app).
+
+The app is called **Darshan Saathi Trust** on the phone (`Brand.appName`, the
+Android label, the iOS display name and the web manifest). Its icon is the
+Darshan Saathi gopuram in brass on temple-door teak with a TRUST band, drawn
+by `tool/brand/render.js` (`node tool/brand/render.js`, needs Playwright's
+Chromium), which also writes the logo shown on the welcome screen.
 
 ## How a temple gets in
 
@@ -34,12 +40,13 @@ An account with no approved temple can see nothing but its own requests.
 | Darshan timings | Darshan, aarti and special timings, every day or per weekday |
 | Closures | Eclipses, renovations and days with changed hours |
 | Events & festivals | With an image; published at once for verified temples, otherwise reviewed by the editors |
-| Pujas & sevas | Fee (or free), timing, outside booking link, and in-app booking: per-person fee, party size, days ahead, daily capacity, instructions |
+| Pujas & sevas | Fee (or free), timing, outside booking link, and in-app booking: per-person fee, party size, days ahead, daily capacity, instructions, and **time slots** (like show times: from–to, people per slot, weekdays; "Make slots" fills e.g. 9:00–12:00 hourly) |
 | Photos | Upload, choose the cover, hide or show, caption, delete |
 | Seva bookings | By day, with gotram, nakshatram, phone and payment, and the day's totals: booked, people, received, amount paid |
 | Finance | Any day's bookings and amount, by seva; the month; what is due to the temple after the platform fee, being paid and paid to date; every payout with its bank reference (UTR) and the bookings it covers; the payout bank account or UPI id (owner only, verified by staff after any change) |
 | Devotee reviews | Read, and reply as the temple |
-| Scan at counter | Scan a devotee's seva booking code and mark them received (refused the second time), or look up a devotee's passport |
+| Scan at counter | Scan a devotee's seva ticket and mark them received (refused the second time, before its day and after it), or scan a devotee's passport and **mark visited today**, which puts the temple's verified stamp in their passport |
+| Temple QR code | The temple's signed check-in code to show at the gate (devotees scan it for their passport stamp), with the printable A4 poster and the link |
 
 Name, deity, classification and the trust level stay with the editorial team,
 as in the web portal.

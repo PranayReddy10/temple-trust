@@ -27,6 +27,10 @@ class _ScanScreenState extends State<ScanScreen> {
   String? _outcome;
   String? _error;
 
+  /// After a passport scan: the temple the stamp is for, and the answer.
+  int? _visitTemple;
+  String? _visitMessage;
+
   @override
   void dispose() {
     _scanner.dispose();
@@ -40,6 +44,7 @@ class _ScanScreenState extends State<ScanScreen> {
         _passportData = null;
         _outcome = null;
         _error = null;
+        _visitMessage = null;
         _typed.clear();
       });
 
@@ -82,6 +87,19 @@ class _ScanScreenState extends State<ScanScreen> {
         _booking = (data['booking'] as Map).cast<String, dynamic>();
         _outcome = data['outcome'] as String?;
       });
+    } on ApiException catch (e) {
+      setState(() => _error = e.details);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Stamps the scanned passport for today at one of this account's temples.
+  Future<void> _markVisited(int templeId) async {
+    setState(() => _busy = true);
+    try {
+      final res = await context.read<Session>().api.post('passports/visit', {'code': _code, 'temple_id': templeId});
+      setState(() => _visitMessage = '${(res['data'] as Map)['message']}');
     } on ApiException catch (e) {
       setState(() => _error = e.details);
     } finally {
@@ -169,7 +187,7 @@ class _ScanScreenState extends State<ScanScreen> {
         title: title,
         body: [
           '${puja['name']} · ${temple['name']}',
-          'For ${b['booked_for']} · ${b['people']} ${b['people'] == 1 ? 'person' : 'people'}',
+          'For ${b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' · ${(b['slot'] as Map)['label']}' : ''} · ${b['people']} ${b['people'] == 1 ? 'person' : 'people'}',
           '${b['devotee_name'] ?? ''}${b['devotee_phone'] != null ? ' · ${b['devotee_phone']}' : ''}',
           if (b['gotram'] != null) 'Gotram: ${b['gotram']}',
           if (b['nakshatram'] != null) 'Nakshatram: ${b['nakshatram']}',
@@ -186,15 +204,47 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _passportCard(Json p) {
-    return _ResultCard(
-      color: Theme.of(context).colorScheme.primary,
-      icon: Icons.badge_outlined,
-      title: '${p['name'] ?? 'Devotee'}',
-      body: [
-        for (final e in p.entries)
-          if (e.value is String || e.value is num) '${e.key.replaceAll('_', ' ')}: ${e.value}',
-      ].join('\n'),
-    );
+    // Only temples this account manages can stamp a passport; a super admin
+    // without a claim of their own has none here.
+    final temples = context.read<Session>().account?.temples ?? const [];
+    final chosen = _visitTemple ?? (temples.isEmpty ? null : temples.first.id);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _ResultCard(
+        color: Theme.of(context).colorScheme.primary,
+        icon: Icons.badge_outlined,
+        title: '${p['name'] ?? 'Devotee'}',
+        body: [
+          for (final e in p.entries)
+            if (e.value is String || e.value is num) '${e.key.replaceAll('_', ' ')}: ${e.value}',
+        ].join('\n'),
+      ),
+      if (_visitMessage != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: _ResultCard(color: const Color(0xFF2E7D55), icon: Icons.verified, title: 'Stamped', body: _visitMessage!),
+        )
+      else if (temples.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        if (temples.length > 1)
+          DropdownButtonFormField<int>(
+            initialValue: chosen,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Visited which temple'),
+            items: [for (final t in temples) DropdownMenuItem(value: t.id, child: Text(t.name, overflow: TextOverflow.ellipsis))],
+            onChanged: (v) => setState(() => _visitTemple = v),
+          ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _busy || chosen == null ? null : () => _markVisited(chosen),
+          icon: const Icon(Icons.approval),
+          label: Text(temples.length == 1 ? 'Mark visited today at ${temples.first.name}' : 'Mark visited today'),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('Only while they are here with you. The stamp goes into their passport, verified by the temple.', textAlign: TextAlign.center),
+        ),
+      ],
+    ]);
   }
 }
 

@@ -74,7 +74,7 @@ class _AccountScreenState extends State<AccountScreen> {
             leading: const Icon(Icons.support_agent),
             title: const Text('Contact the ${Brand.name} team'),
             subtitle: const Text(Brand.supportEmail),
-            onTap: () => launchUrl(Uri(scheme: 'mailto', path: Brand.supportEmail, query: 'subject=Temple Trust app')),
+            onTap: () => launchUrl(Uri(scheme: 'mailto', path: Brand.supportEmail, query: 'subject=${Brand.appName} app')),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
