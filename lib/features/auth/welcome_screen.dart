@@ -31,14 +31,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 Center(
                   child: Container(
-                    width: 76,
-                    height: 76,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(colors: [Palette.kumkum, Palette.saffron]),
+                      borderRadius: BorderRadius.circular(22),
                       boxShadow: [BoxShadow(color: Palette.kumkum.withValues(alpha: 0.3), blurRadius: 18, offset: const Offset(0, 6))],
                     ),
-                    child: const Icon(Icons.temple_hindu, color: Colors.white, size: 40),
+                    child: Image.asset('assets/brand/logo.png', width: 96, height: 96, semanticLabel: Brand.appName),
                   ),
                 ),
                 const SizedBox(height: 18),

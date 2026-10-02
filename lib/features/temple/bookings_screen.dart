@@ -107,7 +107,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                     title: Text('${b['devotee_name'] ?? 'Devotee'} · ${b['people']} ${b['people'] == 1 ? 'person' : 'people'}'),
                     subtitle: Text([
                       '${puja['name'] ?? ''}',
-                      '${b['booked_for']}',
+                      '${b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' ${(b['slot'] as Map)['label']}' : ''}',
                       'Ref ${b['reference']}',
                       if (b['amount'] != null) '${b['amount']}',
                       if (b['gotram'] != null) 'Gotram ${b['gotram']}',

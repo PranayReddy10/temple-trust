@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 100">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5D4037"/><stop offset="1" stop-color="#3E2723"/></linearGradient>
+  <linearGradient id="b" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8A6A1F"/><stop offset=".5" stop-color="#F2C94C"/><stop offset="1" stop-color="#8A6A1F"/></linearGradient></defs>
+  <rect width="100" height="100" rx="22" fill="url(#g)"/>
+  <rect x="5" y="5" width="90" height="90" rx="18" fill="none" stroke="#C9A227" stroke-opacity=".35" stroke-width="1.2"/>
+  <g transform="translate(15 6) scale(0.7)">
+  <path d="M50 12c5 6 7 10 7 14a7 7 0 0 1-14 0c0-4 2-8 7-14z" fill="#F2C94C"/>
+  <ellipse cx="50" cy="35" rx="4.5" ry="3" fill="#F5EBDC"/>
+  <path d="M42 40h16l2 7H40z" fill="#F5EBDC"/>
+  <path d="M37 48h26l2.5 8h-31z" fill="#F5EBDC"/>
+  <path d="M32 57h36l3 9H29z" fill="#F5EBDC"/>
+  <path d="M26 67h48l3 10H23z" fill="#F5EBDC"/>
+  <path d="M20 78h60v10H20z" fill="#F5EBDC"/>
+  <path d="M44 88v-9a6 6 0 0 1 12 0v9z" fill="#F2C94C"/></g>
+  <rect x="18" y="74" width="64" height="15" rx="3" fill="url(#b)"/>
+  <text x="50" y="85.5" text-anchor="middle" font-family="Georgia, 'Noto Serif', serif" font-weight="700" font-size="11" letter-spacing="2.2" fill="#3E2723">TRUST</text>
+
+  <text x="116" y="56" font-family="Georgia, 'Noto Serif', serif" font-weight="700" font-size="38" fill="#3E2723">Darshan Saathi</text>
+  <text x="118" y="82" font-family="system-ui, 'Segoe UI', sans-serif" font-weight="700" font-size="15" letter-spacing="5" fill="#9B1B30">TRUST</text></svg>

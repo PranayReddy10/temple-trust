@@ -40,7 +40,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final user = context.watch<Session>().account?.user;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('${Brand.appName} · Admin'),
+        title: const Text('Admin · ${Brand.appName}'),
         actions: [
           IconButton(
             tooltip: 'Account',

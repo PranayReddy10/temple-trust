@@ -125,6 +125,7 @@ class StatusChip extends StatelessWidget {
       'approved' || 'published' || 'confirmed' || 'verified' => const Color(0xFF2E7D55),
       'pending' || 'pending_review' || 'pending_payment' || 'in_review' => const Color(0xFFC9A227),
       'rejected' || 'cancelled' || 'refunded' || 'duplicate' => const Color(0xFFB3261E),
+      'expired' => const Color(0xFF8D6E63),
       _ => const Color(0xFF6B7FA8),
     };
     return StatusChip(label, color: c);

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
+import '../counter/scan_screen.dart';
 import 'bookings_screen.dart';
 import 'closures_screen.dart';
 import 'events_screen.dart';
@@ -12,6 +13,7 @@ import 'photos_screen.dart';
 import 'profile_edit_screen.dart';
 import 'reviews_screen.dart';
 import 'sevas_screen.dart';
+import 'temple_qr_screen.dart';
 import 'timings_screen.dart';
 
 /// One temple: today at a glance, then everything the team manages.
@@ -148,6 +150,8 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                 _Tile(Icons.confirmation_number_outlined, 'Seva bookings', 'Who is coming, by day', () => _open(BookingsScreen(templeId: t.id))),
                 _Tile(Icons.account_balance_wallet_outlined, 'Finance', 'Amounts by day, payouts, payout account', () => _open(FinanceScreen(templeId: t.id, title: t.name))),
                 _Tile(Icons.rate_review_outlined, 'Devotee reviews', 'Read and reply', () => _open(ReviewsScreen(templeId: t.id))),
+                _Tile(Icons.qr_code_2, 'Temple QR code', 'Check-in code for the gate; print the poster', () => _open(TempleQrScreen(templeId: t.id, title: t.name))),
+                _Tile(Icons.qr_code_scanner, 'Scan at counter', 'Seva tickets, and stamping a devotee\'s passport', () => _open(const ScanScreen())),
               ],
             ),
           );
