@@ -32,7 +32,10 @@ class Session extends ChangeNotifier {
 
   Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
-    api.baseUrl = prefs.getString(_baseKey) ?? Brand.defaultApiBase;
+    // Always the live server (or the build's API_BASE_URL); an address saved
+    // by an older test build is dropped.
+    api.baseUrl = Brand.defaultApiBase;
+    await prefs.remove(_baseKey);
     api.token = prefs.getString(_tokenKey);
     if (api.token != null) {
       try {
@@ -42,13 +45,6 @@ class Session extends ChangeNotifier {
       }
     }
     _ready = true;
-    notifyListeners();
-  }
-
-  Future<void> setServer(String base) async {
-    api.baseUrl = base;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_baseKey, api.baseUrl);
     notifyListeners();
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/live_location.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
@@ -19,7 +20,7 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   static const _fields = [
-    'short_description', 'address', 'city', 'pincode', 'latitude', 'longitude',
+    'short_description', 'address', 'city', 'pincode',
     'official_website', 'contact_phone', 'contact_email',
     'dress_code', 'photography_policy', 'mobile_policy', 'footwear_policy', 'entry_rules', 'queue_information',
   ];
@@ -27,8 +28,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late final Map<String, TextEditingController> _c = {
     for (final f in _fields) f: TextEditingController(text: widget.temple.profile[f]?.toString() ?? ''),
   };
+  LiveFix? _fix;
   bool _busy = false;
   ApiException? _error;
+
+  String? get _saved {
+    final lat = widget.temple.profile['latitude'], lng = widget.temple.profile['longitude'];
+    return lat == null || lng == null ? null : 'On file: $lat, $lng';
+  }
 
   @override
   void dispose() {
@@ -46,6 +53,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       await context.read<Session>().api.patch('temples/${widget.temple.id}', {
         for (final f in _fields) f: _c[f]!.text.trim().isEmpty ? null : _c[f]!.text.trim(),
+        // Coordinates change only with a fresh fix taken at the temple.
+        if (_fix != null) ..._fix!.toFields(),
       });
       if (!mounted) return;
       showMessage(context, 'Saved. Devotees see the changes at once.');
@@ -86,11 +95,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           _f('address', 'Address', lines: 3),
           _f('city', 'City / town / village'),
           _f('pincode', 'PIN code', type: TextInputType.number),
-          Row(children: [
-            Expanded(child: _f('latitude', 'Latitude', type: const TextInputType.numberWithOptions(decimal: true, signed: true))),
-            const SizedBox(width: 12),
-            Expanded(child: _f('longitude', 'Longitude', type: const TextInputType.numberWithOptions(decimal: true, signed: true))),
-          ]),
+          LiveLocationField(
+            value: _fix,
+            saved: _saved,
+            error: _error?.field('location_accuracy') ?? _error?.field('latitude'),
+            onChanged: (f) => setState(() => _fix = f),
+          ),
           const SectionTitle('Official contact'),
           _f('contact_phone', 'Phone', type: TextInputType.phone),
           _f('contact_email', 'Email', type: TextInputType.emailAddress),

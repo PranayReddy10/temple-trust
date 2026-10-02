@@ -48,10 +48,16 @@ An account with no approved temple can see nothing but its own requests.
 | Online hundi | Gifts devotees made in the app, today / this month / in all, with donor ("A devotee" when anonymous) and purpose; the owner switches the hundi on or off |
 | Devotee reviews | Read, and reply as the temple |
 | Scan at counter | Scan a devotee's seva or event ticket and mark them received (refused the second time, before its day and after it), or scan a devotee's passport and **mark visited today**, which puts the temple's verified stamp in their passport |
+| Help & support | Ask the Darshan Saathi team in the app (payouts, bookings, listing, anything else). Questions land in Admin → Support & reports and the answers come back as a conversation |
 | Temple QR code | The temple's signed check-in code to show at the gate (devotees scan it for their passport stamp), with the printable A4 poster and the link |
 
 Name, deity, classification and the trust level stay with the editorial team,
 as in the web portal.
+
+**Location is taken live.** Registering a temple, or changing its location,
+uses the phone's GPS at the temple ("Use my current location"); coordinates
+cannot be typed. The fix must be accurate to 150 m (mock locations are
+refused), and the server rejects a registration or location change without it.
 
 ## Super admins
 
@@ -77,13 +83,12 @@ flutter run                       # device or emulator
 flutter run -d chrome             # web
 ```
 
-Pointing at another server (local Laravel, staging):
+Builds talk to `https://temple.darshansaathi.com`; there is no server setting
+in the app. For local Laravel or staging, build with:
 
 ```bash
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
 ```
-
-The server can also be changed on the sign-in screen.
 
 ```bash
 flutter analyze
