@@ -20,7 +20,7 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   static const _fields = [
-    'short_description', 'address', 'city', 'pincode',
+    'short_description', 'address', 'city', 'district', 'pincode',
     'official_website', 'contact_phone', 'contact_email',
     'dress_code', 'photography_policy', 'mobile_policy', 'footwear_policy', 'entry_rules', 'queue_information',
   ];
@@ -29,6 +29,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     for (final f in _fields) f: TextEditingController(text: widget.temple.profile[f]?.toString() ?? ''),
   };
   LiveFix? _fix;
+  late dynamic _stateId = widget.temple.profile['state_id'];
   bool _busy = false;
   ApiException? _error;
 
@@ -53,6 +54,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       await context.read<Session>().api.patch('temples/${widget.temple.id}', {
         for (final f in _fields) f: _c[f]!.text.trim().isEmpty ? null : _c[f]!.text.trim(),
+        'state_id': _stateId,
         // Coordinates change only with a fresh fix taken at the temple.
         if (_fix != null) ..._fix!.toFields(),
       });
@@ -94,6 +96,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           const SectionTitle('Location'),
           _f('address', 'Address', lines: 3),
           _f('city', 'City / town / village'),
+          _f('district', 'District'),
+          OptionField(
+            label: 'State',
+            options: context.watch<Session>().options.states,
+            value: _stateId,
+            allowNone: true,
+            onChanged: (v) => setState(() => _stateId = v),
+          ),
+          const SizedBox(height: 12),
           _f('pincode', 'PIN code', type: TextInputType.number),
           LiveLocationField(
             value: _fix,
