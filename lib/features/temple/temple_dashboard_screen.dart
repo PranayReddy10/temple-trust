@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/api_client.dart';
 
 import '../../core/models.dart';
 import '../../core/session.dart';
@@ -30,6 +33,7 @@ class TempleDashboardScreen extends StatefulWidget {
 
 class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
   late Future<TrustTemple> _future = _load();
+  bool _coverBusy = false;
 
   Future<TrustTemple> _load() async {
     final res = await context.read<Session>().api.get('temples/${widget.templeId}');
@@ -45,6 +49,43 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
       _reload();
     } catch (e) {
       if (mounted) showError(context, e);
+    }
+  }
+
+  /// The cover devotees see first: a new photo straight from the phone, or
+  /// one already uploaded.
+  Future<void> _changeCover(TrustTemple t) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const ListTile(title: Text('Cover photo'), subtitle: Text('The first picture devotees see of the temple.')),
+          ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Take a photo'), onTap: () => Navigator.pop(c, 'camera')),
+          ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Choose from the phone'), onTap: () => Navigator.pop(c, 'gallery')),
+          ListTile(leading: const Icon(Icons.collections_outlined), title: const Text('Pick one already uploaded'), onTap: () => Navigator.pop(c, 'existing')),
+        ]),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    if (choice == 'existing') {
+      showMessage(context, 'Tap a photo, then "Make cover photo".');
+      return _open(PhotosScreen(templeId: t.id));
+    }
+    final f = await ImagePicker().pickImage(source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery, imageQuality: 85, maxWidth: 2400);
+    if (f == null || !mounted) return;
+    setState(() => _coverBusy = true);
+    try {
+      await context.read<Session>().api.multipart('temples/${t.id}/photos', fields: {
+        'category': 'exterior',
+        'is_primary': true,
+        'is_published': true,
+      }, files: [UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())]);
+      if (mounted) showMessage(context, 'Cover photo changed.');
+      _reload();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _coverBusy = false);
     }
   }
 
@@ -77,17 +118,33 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
       body: FutureBuilder<TrustTemple>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final t = snap.data!;
           final s = t.stats;
           int n(String k) => (s[k] as num?)?.toInt() ?? 0;
 
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
+                _Cover(temple: t, busy: _coverBusy, onChange: () => _changeCover(t)),
+                if (_address(t).isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Icon(Icons.place_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(_address(t), style: Theme.of(context).textTheme.bodyMedium)),
+                    ]),
+                  ),
                 Wrap(spacing: 6, runSpacing: 6, children: [
                   if (t.statusLabel != null) StatusChip.forStatus('${(t.raw['status'] as Map?)?['value']}', t.statusLabel!),
                   if (t.trustLabel != null) StatusChip(t.trustLabel!),
@@ -121,6 +178,36 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                     ),
                   ),
                 ),
+                // Online hundi: what devotees gave in the app today and this month.
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _open(DonationsScreen(templeId: t.id)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(children: [
+                        Expanded(
+                          child: Figure(
+                            'Hundi today',
+                            rupees(s['hundi_today_paise']),
+                            emphasis: true,
+                            color: Theme.of(context).colorScheme.secondary,
+                            caption: s['hundi_enabled'] == false
+                                ? 'Online hundi is off'
+                                : '${n('hundi_today_count')} gifts · ${rupees(s['hundi_month_paise'])} this month',
+                          ),
+                        ),
+                        const Icon(Icons.volunteer_activism_outlined),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right),
+                      ]),
+                    ),
+                  ),
+                ),
+                if (s['fee_percent'] != null) ...[
+                  const SizedBox(height: 4),
+                  FeeShareCard(feePercent: s['fee_percent'], donationFeePercent: s['donation_fee_percent'], compact: true),
+                ],
                 const SizedBox(height: 10),
                 GridView.count(
                   crossAxisCount: 3,
@@ -214,6 +301,60 @@ class _Tile extends StatelessWidget {
           subtitle: Text(subtitle),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
+        ),
+      ),
+    );
+  }
+}
+
+/// Address, town, district, state and PIN, as devotees see it.
+String _address(TrustTemple t) {
+  final p = t.profile;
+  final parts = <String>[];
+  for (final k in ['address', 'city', 'district', 'state']) {
+    final v = '${p[k] ?? (k == 'state' ? t.state ?? '' : '')}'.trim();
+    if (v.isNotEmpty && v != 'null' && !parts.any((e) => e.toLowerCase() == v.toLowerCase())) parts.add(v);
+  }
+  if ('${p['pincode'] ?? ''}'.trim().isNotEmpty) parts.add('PIN ${p['pincode']}');
+  return parts.join(', ');
+}
+
+class _Cover extends StatelessWidget {
+  const _Cover({required this.temple, required this.busy, required this.onChange});
+
+  final TrustTemple temple;
+  final bool busy;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Stack(fit: StackFit.expand, children: [
+            if (temple.imageUrl != null)
+              Image.network(temple.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: theme.colorScheme.surfaceContainerHighest))
+            else
+              ColoredBox(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Icon(Icons.temple_hindu, size: 56, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+              ),
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: FilledButton.tonalIcon(
+                onPressed: busy ? null : onChange,
+                icon: busy
+                    ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.photo_camera_outlined, size: 18),
+                label: Text(busy ? 'Uploading…' : (temple.imageUrl == null ? 'Add cover photo' : 'Change cover')),
+              ),
+            ),
+          ]),
         ),
       ),
     );

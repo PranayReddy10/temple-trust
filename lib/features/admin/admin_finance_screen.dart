@@ -108,7 +108,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
       body: FutureBuilder<(Json, List<Json>)>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final (o, pending) = snap.data!;
           final today = _map(o['today']);
@@ -119,8 +119,14 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
           final theme = Theme.of(context);
 
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
                 Card(

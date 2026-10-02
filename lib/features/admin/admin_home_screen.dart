@@ -57,15 +57,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final o = snap.data!;
           final temples = (o['temples'] as Map?) ?? const {};
           int n(dynamic v) => (v as num?)?.toInt() ?? 0;
 
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
               children: [
                 if (user != null)

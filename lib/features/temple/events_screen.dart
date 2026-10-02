@@ -127,7 +127,7 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final d = snap.data!;
           final date = '${d['date']}';
@@ -138,7 +138,12 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
           int n(String k) => (s[k] as num?)?.toInt() ?? 0;
 
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               physics: const AlwaysScrollableScrollPhysics(),

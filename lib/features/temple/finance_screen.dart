@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/brand.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 import 'bookings_screen.dart';
@@ -50,7 +51,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final f = snap.data!;
           final day = _map(f['day']);
@@ -65,11 +66,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
           final theme = Theme.of(context);
 
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
                 Text(widget.title, style: theme.textTheme.titleLarge),
+                const SizedBox(height: 8),
+                FeeShareCard(feePercent: balance['fee_percent'], donationFeePercent: balance['donation_fee_percent']),
                 SectionTitle(
                   _isToday ? 'Today' : 'Day',
                   trailing: SizedBox(
@@ -412,7 +421,7 @@ class _SettlementDetailScreenState extends State<SettlementDetailScreen> {
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: () => setState(() => _future = _load()));
           return SettlementDetails(settlement: snap.data!);
         },
@@ -609,6 +618,67 @@ class _PayoutAccountScreenState extends State<PayoutAccountScreen> {
             child: _saving ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// How every rupee is shared: what the platform keeps and what reaches the
+/// temple, on sevas and tickets and on hundi gifts, with a worked example.
+class FeeShareCard extends StatelessWidget {
+  const FeeShareCard({super.key, required this.feePercent, this.donationFeePercent, this.compact = false});
+
+  final dynamic feePercent;
+  final dynamic donationFeePercent;
+
+  /// One line each, for the temple's home screen.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    double pct(dynamic v) => ((v as num?)?.toDouble() ?? 0).clamp(0, 100).toDouble();
+    final fee = pct(feePercent);
+    final gift = donationFeePercent == null ? null : pct(donationFeePercent);
+
+    Widget row(String what, double keep) {
+      final yours = 100 - keep;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(what, style: theme.textTheme.labelLarge),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 10,
+              child: Row(children: [
+                Expanded(flex: (yours * 100).round().clamp(1, 10000), child: ColoredBox(color: theme.colorScheme.primary)),
+                if (keep > 0) Expanded(flex: (keep * 100).round().clamp(1, 10000), child: ColoredBox(color: theme.colorScheme.secondary)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            keep == 0
+                ? 'Your temple receives all of it (${_percent(100)}). No platform fee.'
+                : 'Your temple receives ${_percent(yours)} · ${Brand.name} keeps ${_percent(keep)}'
+                    '${compact ? '' : '\nOn ${rupees(100000)}: ${rupees((100000 * yours / 100).round())} to the temple, ${rupees((100000 * keep / 100).round())} fee'}',
+            style: theme.textTheme.bodySmall,
+          ),
+        ]),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Your share', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          row('Sevas and event tickets', fee),
+          if (gift != null) row('Online hundi gifts', gift),
+        ]),
       ),
     );
   }

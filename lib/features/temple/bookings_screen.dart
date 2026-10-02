@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/session.dart';
 import '../../core/widgets.dart';
+import 'booking_detail_screen.dart';
 import '../counter/scan_screen.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -127,6 +128,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       if (b['devotee_phone'] != null) '${b['devotee_phone']}',
                     ].join(' · ')),
                     trailing: StatusChip.forStatus('${status['value']}', '${status['label'] ?? status['value']}'),
+                    onTap: () async {
+                      await Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: b)));
+                      reload();
+                    },
                   ),
                 );
               },
