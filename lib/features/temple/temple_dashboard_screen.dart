@@ -13,6 +13,7 @@ import 'closures_screen.dart';
 import 'donations_screen.dart';
 import 'events_screen.dart';
 import 'finance_screen.dart';
+import 'payments_verification_screen.dart';
 import 'photos_screen.dart';
 import 'profile_edit_screen.dart';
 import 'reviews_screen.dart';
@@ -155,6 +156,25 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                     padding: EdgeInsets.only(top: 10),
                     child: Text('Not yet visible to devotees. Fill in timings, sevas and photos; the editors publish it once reviewed.'),
                   ),
+                if (s['payments'] != null && s['payments'] != 'approved')
+                  Card(
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    child: ListTile(
+                      leading: const Icon(Icons.verified_user_outlined),
+                      title: Text(switch ('${s['payments']}') {
+                        'pending' => 'Payments: being checked',
+                        'rejected' => 'Payments: not approved',
+                        _ => 'Take money in the app',
+                      }),
+                      subtitle: Text(switch ('${s['payments']}') {
+                        'pending' => 'Paid sevas, tickets and the hundi open once our team approves your details.',
+                        'rejected' => 'See why, fix it and send again.',
+                        _ => 'For paid sevas, paid tickets or the online hundi: add the bank account, Aadhaar, temple proof and your photo.',
+                      }),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _open(PaymentsVerificationScreen(templeId: t.id)),
+                    ),
+                  ),
                 const SectionTitle('Today'),
                 // Who is coming today and what they paid, at a glance.
                 Card(
@@ -192,7 +212,9 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                             rupees(s['hundi_today_paise']),
                             emphasis: true,
                             color: Theme.of(context).colorScheme.secondary,
-                            caption: s['hundi_enabled'] == false
+                            caption: s['payments'] != null && s['payments'] != 'approved'
+                                ? 'Opens after payments are approved'
+                                : s['hundi_enabled'] == false
                                 ? 'Online hundi is off'
                                 : '${n('hundi_today_count')} gifts · ${rupees(s['hundi_month_paise'])} this month',
                           ),

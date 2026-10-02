@@ -6,6 +6,7 @@ import '../../core/brand.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 import 'bookings_screen.dart';
+import 'payments_verification_screen.dart';
 import 'donations_screen.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -185,7 +186,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 _PayoutCard(
                   account: account,
                   canEdit: f['can_edit_payout_account'] == true,
-                  onEdit: () => _open(PayoutAccountScreen(templeId: widget.templeId, account: account)),
+                  onEdit: () => _open(PaymentsVerificationScreen(templeId: widget.templeId)),
                 ),
               ],
             ),
@@ -357,14 +358,18 @@ class _PayoutCard extends StatelessWidget {
                 if (a['upi_id'] != null) 'UPI ${a['upi_id']}',
               ].join(' · ')
             : canEdit
-                ? 'Add the trust\'s bank account or UPI id so the platform can pay you.'
+                ? 'Add the bank account and verification documents to take money in the app.'
                 : 'The temple\'s owner adds this in the app.'),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (complete)
-            a['is_verified'] == true ? StatusChip.forStatus('verified', 'Verified') : StatusChip.forStatus('pending', 'Being checked'),
-          if (canEdit) const Icon(Icons.chevron_right),
+          switch ('${(a?['kyc'] as Map?)?['status'] ?? 'missing'}') {
+            'approved' => StatusChip.forStatus('verified', 'Payments on'),
+            'pending' => StatusChip.forStatus('pending', 'Being checked'),
+            'rejected' => StatusChip.forStatus('rejected', 'Not approved'),
+            _ => StatusChip.forStatus('pending', 'Set up'),
+          },
+          const Icon(Icons.chevron_right),
         ]),
-        onTap: canEdit ? onEdit : null,
+        onTap: onEdit,
       ),
     );
   }

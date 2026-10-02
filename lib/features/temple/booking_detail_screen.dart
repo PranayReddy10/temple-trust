@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/brand.dart';
 import '../../core/session.dart';
@@ -68,7 +67,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     final expired = b['expired_at'] != null;
     final verified = b['verified_at'] != null || value == 'verified';
     final confirmed = value == 'confirmed';
-    final showCode = confirmed && !expired && b['code'] != null;
+    final valid = confirmed && !expired;
     final color = expired
         ? Palette.stone
         : switch (value) {
@@ -139,27 +138,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               const SizedBox(height: 12),
               Row(children: List.generate(30, (_) => Expanded(child: Container(height: 1.5, margin: const EdgeInsets.symmetric(horizontal: 2), color: Palette.gold.withValues(alpha: 0.7))))),
               const SizedBox(height: 14),
-              if (showCode)
-                QrImageView(
-                  data: '${b['qr_url'] ?? b['code']}',
-                  size: 200,
-                  backgroundColor: Palette.ivory,
-                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.circle, color: Palette.kumkum),
-                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.circle, color: Palette.deep),
-                )
-              else
-                Container(
-                  width: 220,
-                  height: 150,
-                  decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(verified ? Icons.verified : (expired ? Icons.event_busy : Icons.hourglass_top), size: 52, color: color),
-                    const SizedBox(height: 8),
-                    Text(verified ? 'RECEIVED' : label.toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.w800)),
-                    if (verifiedAt != null) Text(DateFormat('d MMM, h:mm a').format(verifiedAt), style: const TextStyle(color: Palette.stone, fontSize: 12)),
-                  ]),
-                ),
-              const SizedBox(height: 14),
               const Text('REFERENCE', style: TextStyle(color: Palette.stone, letterSpacing: 2, fontSize: 10, fontWeight: FontWeight.w700)),
               InkWell(
                 onTap: () {
@@ -174,7 +152,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(999), border: Border.all(color: color.withValues(alpha: 0.4))),
                 child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
               ),
-              if (showCode && day != null) ...[
+              if (valid && day != null) ...[
                 const SizedBox(height: 8),
                 Text('Valid on ${DateFormat('EEE, d MMM yyyy').format(day)} only', style: const TextStyle(color: Palette.stone, fontSize: 12, fontWeight: FontWeight.w600)),
               ],
@@ -192,6 +170,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           fact(Icons.person, 'In the name of', [b['devotee_name'] ?? 'Devotee', if (b['gotram'] != null) 'Gotram ${b['gotram']}', if (b['nakshatram'] != null) '${b['nakshatram']}'].join(' · ')),
           if (b['devotee_phone'] != null) fact(Icons.phone, 'Phone', '${b['devotee_phone']}'),
           if (day != null) fact(Icons.calendar_month, 'Day', '${DateFormat('EEEE, d MMMM yyyy').format(day)}${time != null ? ' · $time' : ''}'),
+          if (verifiedAt != null) fact(Icons.verified, 'Received at the temple', DateFormat('d MMM yyyy, h:mm a').format(verifiedAt)),
           fact(Icons.groups, 'People', '${b['people'] ?? 1}'),
           if (b['note'] != null) fact(Icons.notes, 'Note from the devotee', '${b['note']}'),
           fact(
