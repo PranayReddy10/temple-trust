@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Record the temple's location from where you are standing, so devotees are guided to the right place.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Scan devotees' seva booking and passport codes at the counter, and photograph your temple.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

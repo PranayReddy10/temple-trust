@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../core/brand.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
+import 'support_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -72,16 +72,10 @@ class _AccountScreenState extends State<AccountScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.support_agent),
-            title: const Text('Contact the ${Brand.name} team'),
-            subtitle: const Text(Brand.supportEmail),
-            onTap: () => launchUrl(Uri(scheme: 'mailto', path: Brand.supportEmail, query: 'subject=${Brand.appName} app')),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.open_in_browser),
-            title: const Text('Open the temple portal on the web'),
-            subtitle: Text('${_session.api.baseUrl}/temple'),
-            onTap: () => launchUrl(Uri.parse('${_session.api.baseUrl}/temple'), mode: LaunchMode.externalApplication),
+            title: const Text('Help & support'),
+            subtitle: const Text('Ask the ${Brand.name} team. Answers appear in the app.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(

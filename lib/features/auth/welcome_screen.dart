@@ -60,35 +60,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   duration: const Duration(milliseconds: 200),
                   child: _register ? const _RegisterForm(key: ValueKey('r')) : const _LoginForm(key: ValueKey('l')),
                 ),
-                const SizedBox(height: 24),
-                TextButton.icon(
-                  onPressed: () => _server(context),
-                  icon: const Icon(Icons.dns_outlined, size: 18),
-                  label: Text('Server: ${context.watch<Session>().api.baseUrl}', overflow: TextOverflow.ellipsis),
-                ),
               ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  Future<void> _server(BuildContext context) async {
-    final session = context.read<Session>();
-    final c = TextEditingController(text: session.api.baseUrl);
-    final v = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Server address'),
-        content: TextField(controller: c, keyboardType: TextInputType.url, decoration: const InputDecoration(hintText: 'https://temple.darshansaathi.com')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, Brand.defaultApiBase), child: const Text('Reset')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Save')),
-        ],
-      ),
-    );
-    if (v != null && v.trim().isNotEmpty) await session.setServer(v);
   }
 }
 

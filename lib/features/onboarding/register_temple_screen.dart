@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/live_location.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 
@@ -33,6 +34,7 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
   TimeOfDay? _opens;
   TimeOfDay? _closes;
   final List<XFile> _photos = [];
+  LiveFix? _fix;
   bool _busy = false;
   ApiException? _error;
 
@@ -55,6 +57,10 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
+    if (_fix == null) {
+      showMessage(context, 'Record the temple location: stand at the temple and tap "Use my current location".');
+      return;
+    }
     if (_photos.isEmpty) {
       showMessage(context, 'Add at least one photo of the temple.');
       return;
@@ -77,6 +83,7 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
         'submitter_role': _role,
         'opens_at': formatTime(_opens),
         'closes_at': formatTime(_closes),
+        ..._fix!.toFields(),
       }, files: files);
       await session.refresh();
       if (!mounted) return;
@@ -123,6 +130,12 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
             OptionField(label: 'State', options: options.states, value: _stateId, allowNone: true, onChanged: (v) => setState(() => _stateId = v)),
             const SizedBox(height: 12),
             _field('pincode', 'PIN code', type: TextInputType.number),
+            LiveLocationField(
+              value: _fix,
+              required: true,
+              error: _error?.field('location_accuracy') ?? _error?.field('latitude'),
+              onChanged: (f) => setState(() => _fix = f),
+            ),
             const SectionTitle('Timings and contact'),
             Row(children: [
               Expanded(child: TimeField(label: 'Opens', value: _opens, onChanged: (t) => setState(() => _opens = t))),
