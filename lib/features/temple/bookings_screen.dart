@@ -30,6 +30,10 @@ class BookingsScreen extends StatefulWidget {
 
 class _BookingsScreenState extends State<BookingsScreen> {
   late DateTime? _day = widget.initialDay ?? (widget.todayOnly ? DateTime.now() : null);
+
+  /// Which bookings: the successful ones (confirmed, and received at the
+  /// temple) by default; the others on request.
+  String _status = 'successful';
   final _list = GlobalKey<AsyncListState<Json>>();
 
   /// The day's totals, sent with the list when a day is chosen.
@@ -64,6 +68,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final q = _search.text.trim();
     final res = await context.read<Session>().api.get('temples/${widget.templeId}/bookings', {
       'date': _day == null ? null : formatDate(_day!),
+      'status': _status,
       if (q.length >= 2) 'q': q,
     });
     final summary = (res['summary'] as Map?)?.cast<String, dynamic>();
@@ -151,6 +156,32 @@ class _BookingsScreenState extends State<BookingsScreen> {
                     if (d != null) _setDay(d);
                   },
                 ),
+              ],
+            ),
+          ),
+          // Which bookings: successful by default; the rest on request.
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              children: [
+                for (final (value, label, icon) in [
+                  ('successful', s('filter_successful'), Icons.task_alt),
+                  ('expired', s('filter_expired'), Icons.person_off_outlined),
+                  ('cancelled', s('filter_cancelled'), Icons.cancel_outlined),
+                  ('pending_payment', s('filter_awaiting'), Icons.hourglass_top_outlined),
+                  ('all', s('filter_all'), Icons.list_alt_outlined),
+                ])
+                  _DayChip(
+                    label: label,
+                    icon: icon,
+                    selected: _status == value,
+                    onTap: () {
+                      setState(() => _status = value);
+                      _list.currentState?.reload();
+                    },
+                  ),
               ],
             ),
           ),
