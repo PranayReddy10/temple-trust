@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import 'find_booking_screen.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -157,8 +158,24 @@ class _ScanScreenState extends State<ScanScreen> {
               const SizedBox(width: 8),
               FilledButton(onPressed: _busy ? null : () => _lookup(_typed.text), child: const Text('Check')),
             ]),
+          // No phone at the counter: find the booking by number or name.
+          if (!showingResult && !_passport)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FindBookingScreen())),
+                icon: const Icon(Icons.person_search_outlined),
+                label: const Text('No phone? Find by mobile number or name'),
+              ),
+            ),
           if (_busy) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
           if (_error != null) _ResultCard(color: Theme.of(context).colorScheme.error, icon: Icons.error_outline, title: 'Not found', body: _error!),
+          if (_error != null && !_passport)
+            TextButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FindBookingScreen(initialQuery: _typed.text.trim().isEmpty ? null : _typed.text.trim()))),
+              icon: const Icon(Icons.person_search_outlined),
+              label: const Text('Search by mobile number or name instead'),
+            ),
           if (_booking != null) _bookingCard(_booking!),
           if (_passportData != null) _passportCard(_passportData!),
           if (showingResult) ...[

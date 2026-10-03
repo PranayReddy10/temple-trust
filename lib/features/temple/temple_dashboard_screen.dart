@@ -7,6 +7,7 @@ import '../../core/api_client.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
+import '../counter/find_booking_screen.dart';
 import '../counter/scan_screen.dart';
 import 'bookings_screen.dart';
 import 'closures_screen.dart';
@@ -267,6 +268,7 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                 _Tile(Icons.volunteer_activism_outlined, 'Online hundi', 'Gifts from devotees in the app', () => _open(DonationsScreen(templeId: t.id))),
                 _Tile(Icons.rate_review_outlined, 'Devotee reviews', 'Read and reply', () => _open(ReviewsScreen(templeId: t.id))),
                 _Tile(Icons.qr_code_2, 'Temple QR code', 'Check-in code for the gate; print the poster', () => _open(TempleQrScreen(templeId: t.id, title: t.name))),
+                _Tile(Icons.person_search_outlined, 'Find a booking', 'Devotee without a phone: by mobile number, reference or name', () => _open(const FindBookingScreen())),
                 _Tile(Icons.qr_code_scanner, 'Scan at counter', 'Seva bookings, event tickets, and stamping a devotee\'s passport', () => _open(const ScanScreen())),
               ],
             ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 import 'booking_detail_screen.dart';
+import '../counter/find_booking_screen.dart';
 import '../counter/scan_screen.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -75,6 +76,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
       appBar: AppBar(
         title: const Text('Seva bookings'),
         actions: [
+          IconButton(
+            tooltip: 'Find by mobile number, reference or name',
+            icon: const Icon(Icons.person_search_outlined),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const FindBookingScreen()));
+              _list.currentState?.reload();
+            },
+          ),
           IconButton(
             tooltip: 'Scan a booking',
             icon: const Icon(Icons.qr_code_scanner),
