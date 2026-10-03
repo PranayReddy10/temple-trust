@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/api_client.dart';
 import '../../core/l10n.dart';
 import '../../core/models.dart';
+import '../../core/photo_crop.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -96,6 +97,10 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
     }
     final f = await ImagePicker().pickImage(source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery, imageQuality: 85, maxWidth: 2400);
     if (f == null || !mounted) return;
+    // Framed at 4:3 first: the cover is seen at that shape on the devotee's
+    // home screen and the temple page.
+    final cropped = await cropPhoto(context, f, title: 'Crop the cover');
+    if (cropped == null || !mounted) return;
     setState(() => _coverBusy = true);
     try {
       await context.read<Session>().api.multipart('temples/${t.id}/photos', fields: {
@@ -103,7 +108,7 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
         'is_primary': true,
         'is_published': true,
       }, files: [
-        UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())
+        UploadFile(field: 'photo', filename: cropped.filename, bytes: cropped.bytes)
       ]);
       if (mounted) showMessage(context, 'Cover photo changed.');
       _reload();

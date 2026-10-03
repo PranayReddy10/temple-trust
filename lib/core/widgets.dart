@@ -505,6 +505,38 @@ class ReportLine extends StatelessWidget {
   }
 }
 
+/// The round send button beside a message field: kumkum behind a white
+/// arrow, drawn outright rather than left to a theme, so it is seen.
+class SendButton extends StatelessWidget {
+  const SendButton({super.key, required this.onPressed, this.busy = false});
+
+  final VoidCallback? onPressed;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: 'Send',
+      child: Material(
+        color: scheme.primary,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        elevation: 2,
+        shadowColor: scheme.primary.withValues(alpha: 0.5),
+        child: InkWell(
+          onTap: busy ? null : onPressed,
+          child: SizedBox(
+            width: 50,
+            height: 50,
+            child: Center(child: busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.send_rounded, color: Colors.white, size: 24)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The first letters of a name on a coloured disc.
 class InitialsAvatar extends StatelessWidget {
   const InitialsAvatar(this.name, {super.key, this.size = 44, this.color});
