@@ -286,7 +286,10 @@ class _TempleCardState extends State<_TempleCard> {
         AspectRatio(
           aspectRatio: 2.2,
           child: Stack(fit: StackFit.expand, children: [
-            if (t.imageUrl != null) FittedPhoto(t.imageUrl!, placeholder: _placeholder(theme)) else _placeholder(theme),
+            if (t.imageUrl != null)
+              Image.network(t.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(theme))
+            else
+              _placeholder(theme),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0x99000000)]),

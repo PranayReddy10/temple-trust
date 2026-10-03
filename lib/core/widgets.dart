@@ -1,6 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -505,33 +502,6 @@ class ReportLine extends StatelessWidget {
         Text(amount, style: (bold ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium)?.copyWith(fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
       ]),
     );
-  }
-}
-
-/// A temple's photo, whole: fitted inside its frame over a blurred copy
-/// of itself, so a portrait or a panorama is never cropped and never sits
-/// on bare bars. The web cannot blur a network image; there the frame
-/// behind is the kumkum gradient.
-class FittedPhoto extends StatelessWidget {
-  const FittedPhoto(this.url, {super.key, this.placeholder});
-
-  final String url;
-  final Widget? placeholder;
-
-  @override
-  Widget build(BuildContext context) {
-    final behind = placeholder ?? const DecoratedBox(decoration: BoxDecoration(gradient: Palette.kumkumGradient));
-    return Stack(fit: StackFit.expand, children: [
-      if (kIsWeb)
-        behind
-      else
-        ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 22, sigmaY: 22, tileMode: TileMode.decal),
-          child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => behind),
-        ),
-      if (!kIsWeb) const ColoredBox(color: Color(0x33000000)),
-      Image.network(url, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-    ]);
   }
 }
 
