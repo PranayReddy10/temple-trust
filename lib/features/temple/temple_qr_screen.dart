@@ -26,6 +26,10 @@ class TempleQrScreen extends StatefulWidget {
 class _TempleQrScreenState extends State<TempleQrScreen> {
   late Future<Json> _future = _load();
 
+  void _retry() {
+    _future = _load();
+  }
+
   Future<Json> _load() async {
     final res = await context.read<Session>().api.get('temples/${widget.templeId}/qr');
     return (res['data'] as Map).cast<String, dynamic>();
@@ -39,7 +43,9 @@ class _TempleQrScreenState extends State<TempleQrScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: () => setState(() => _future = _load()));
+          if (snap.hasError) {
+            return ErrorView(error: snap.error!, onRetry: () => setState(() => _retry()));
+          }
           final q = snap.data!;
           final url = '${q['url']}';
           final theme = Theme.of(context);

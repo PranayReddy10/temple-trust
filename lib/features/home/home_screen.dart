@@ -56,10 +56,11 @@ class HomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
                 child: Text('Namaskaram, ${account.user.name.split(' ').first}', style: Theme.of(context).textTheme.titleLarge),
               ),
-            if (temples.isEmpty) const _GetStarted() else ...[
+            if (temples.isEmpty)
+              const _GetStarted()
+            else ...[
               const SectionTitle('Your temples'),
-              for (final t in temples)
-                Padding(padding: const EdgeInsets.only(bottom: 10), child: _TempleCard(temple: t)),
+              for (final t in temples) Padding(padding: const EdgeInsets.only(bottom: 10), child: _TempleCard(temple: t)),
             ],
             if ((account?.openClaims ?? const []).isNotEmpty) ...[
               const SectionTitle('Requests to manage a temple'),
@@ -202,9 +203,7 @@ class _ClaimTile extends StatelessWidget {
         ].join(' · ')),
         trailing: StatusChip.forStatus(claim.status, label),
         onLongPress: claim.status == 'pending' ? () => _withdraw(context) : null,
-        onTap: claim.status == 'rejected'
-            ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimTempleScreen()))
-            : null,
+        onTap: claim.status == 'rejected' ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimTempleScreen())) : null,
       ),
     );
   }

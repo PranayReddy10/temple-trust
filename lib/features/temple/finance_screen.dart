@@ -36,7 +36,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
     return _map(res['data']);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _open(Widget screen) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -178,10 +180,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     child: const Text('See all'),
                   ),
                 ),
-                if (recent.isEmpty)
-                  const Card(child: ListTile(title: Text('No payouts yet'), subtitle: Text('They appear here once the platform settles your paid bookings.'))),
-                for (final s in recent)
-                  _SettlementTile(s, onTap: () => _open(SettlementDetailScreen(templeId: widget.templeId, settlementId: _n(s['id'])))),
+                if (recent.isEmpty) const Card(child: ListTile(title: Text('No payouts yet'), subtitle: Text('They appear here once the platform settles your paid bookings.'))),
+                for (final s in recent) _SettlementTile(s, onTap: () => _open(SettlementDetailScreen(templeId: widget.templeId, settlementId: _n(s['id'])))),
                 const SectionTitle('Paid to'),
                 if ((account?['kyc'] as Map?)?['status'] == 'rejected')
                   RejectionNotice(
@@ -276,8 +276,7 @@ class _DayCard extends StatelessWidget {
               ],
               if (hasMore) ...[
                 const Divider(height: 24),
-                if (_n(tickets['count']) > 0)
-                  _line(theme, 'Event tickets', '${_n(tickets['count'])} · ${_n(tickets['people'])} ppl', tickets['amount_paise']),
+                if (_n(tickets['count']) > 0) _line(theme, 'Event tickets', '${_n(tickets['count'])} · ${_n(tickets['people'])} ppl', tickets['amount_paise']),
                 if (_n(gifts['count']) > 0) _line(theme, 'Online hundi', '${_n(gifts['count'])} gifts', gifts['amount_paise']),
               ],
               const SizedBox(height: 8),
@@ -434,7 +433,11 @@ class _SettlementDetailScreenState extends State<SettlementDetailScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: () => setState(() => _future = _load()));
+          if (snap.hasError) {
+            return ErrorView(error: snap.error!, onRetry: () => setState(() {
+              _future = _load();
+            }));
+          }
           return SettlementDetails(settlement: snap.data!);
         },
       ),
@@ -484,8 +487,7 @@ class SettlementDetails extends StatelessWidget {
               row('Seva days', '${s['period']}'),
               if (s['items'] != null) row('Covers', '${s['items']}') else row('Bookings', '${_n(s['bookings_count'])}'),
               for (final (k, label) in const [('bookings', 'Seva bookings'), ('tickets', 'Event tickets'), ('donations', 'Hundi gifts')])
-                if (_n(_map(breakdown[k])['count']) > 0)
-                  row(label, '${_n(_map(breakdown[k])['count'])} · ${rupees(_map(breakdown[k])['amount_paise'])}'),
+                if (_n(_map(breakdown[k])['count']) > 0) row(label, '${_n(_map(breakdown[k])['count'])} · ${rupees(_map(breakdown[k])['amount_paise'])}'),
               row('Paid by devotees', rupees(s['gross_paise'])),
               row(
                 'Platform fee',

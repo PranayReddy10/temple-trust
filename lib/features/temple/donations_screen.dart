@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,12 +26,32 @@ class _DonationsScreenState extends State<DonationsScreen> {
   late Future<Json> _future = _load();
   bool _saving = false;
 
+  /// Donor's name, part of their phone number, or the receipt reference.
+  final _search = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _searchChanged(String _) {
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _reload);
+  }
+
   Future<Json> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/donations');
+    final q = _search.text.trim();
+    final res = await context.read<Session>().api.get('temples/${widget.templeId}/donations', {if (q.length >= 2) 'q': q});
     return _map(res['data']);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _setAccepting(bool on) async {
     setState(() => _saving = true);
@@ -105,10 +127,34 @@ class _DonationsScreenState extends State<DonationsScreen> {
                   ),
                 ),
                 const SectionTitle('Gifts'),
+                TextField(
+                  controller: _search,
+                  onChanged: _searchChanged,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search donor name, mobile number or receipt',
+                    helperText: 'Gifts made anonymously are found only by their receipt reference.',
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _search.clear();
+                              _searchChanged('');
+                            },
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 if (items.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Text('No gifts yet.', textAlign: TextAlign.center),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Text(
+                      _search.text.trim().length >= 2 ? 'No gift matches "${_search.text.trim()}".' : 'No gifts yet.',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 for (final g in items)
                   Card(

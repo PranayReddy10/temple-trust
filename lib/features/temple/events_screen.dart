@@ -6,6 +6,7 @@ import '../../core/api_client.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
+import 'booking_detail_screen.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -74,7 +75,8 @@ class _EventsScreenState extends State<EventsScreen> {
                         if (e['type'] == 'bhajan') StatusChip('Bhajan', color: tertiary),
                         if (e['recurrence'] == 'weekly') const StatusChip('Every week'),
                         if (joinable) StatusChip(reg['is_paid'] == true ? '${reg['price'] ?? 'Paid'}' : 'Free', color: const Color(0xFF2E7D55)),
-                        if (joinable) Text('${summary['going'] ?? reg['going'] ?? 0} going${summary['next_on'] != null ? ' on ${summary['next_on']}' : ''}', style: Theme.of(context).textTheme.bodySmall),
+                        if (joinable)
+                          Text('${summary['going'] ?? reg['going'] ?? 0} going${summary['next_on'] != null ? ' on ${summary['next_on']}' : ''}', style: Theme.of(context).textTheme.bodySmall),
                       ]),
                     ),
                     if (joinable)
@@ -112,13 +114,58 @@ class EventAttendeesScreen extends StatefulWidget {
 class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
   String? _date;
   late Future<Json> _future = _load();
+  final _search = TextEditingController();
+  String _query = '';
+
+  /// all · waiting (not yet received) · received
+  String _show = 'all';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// Name, reference, or the phone number however it was typed.
+  bool _matches(Json r) {
+    if (_show == 'received' && !_received(r)) return false;
+    if (_show == 'waiting' && (_received(r) || !_live(r))) return false;
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final digits = q.replaceAll(RegExp(r'\D'), '');
+    final phone = '${r['devotee_phone'] ?? ''}'.replaceAll(RegExp(r'\D'), '');
+    return '${r['devotee_name'] ?? ''}'.toLowerCase().contains(q) || '${r['reference'] ?? ''}'.toLowerCase().contains(q.replaceAll(' ', '')) || (digits.length >= 3 && phone.contains(digits));
+  }
+
+  static String _status(Json r) => '${(r['status'] as Map?)?['value']}';
+  static bool _received(Json r) => _status(r) == 'verified';
+  static bool _live(Json r) => _status(r) == 'confirmed';
+
+  /// Opens the full ticket, where the devotee is marked received.
+  Future<void> _open(Json r) async {
+    try {
+      final res = await context.read<Session>().api.get('bookings/search', {'q': '${r['reference']}'});
+      final full = [for (final x in (res['data'] as List? ?? const [])) (x as Map).cast<String, dynamic>()].where((x) => x['reference'] == r['reference']).firstOrNull;
+      if (!mounted) return;
+      if (full == null) {
+        showMessage(context, 'Could not open this ticket.');
+        return;
+      }
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: full)));
+      if (mounted) _reload();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
 
   Future<Json> _load() async {
     final res = await context.read<Session>().api.get('temples/${widget.templeId}/events/${widget.eventId}/registrations', {'date': _date});
     return (res['data'] as Map).cast<String, dynamic>();
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -178,11 +225,47 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
                   ),
                 ),
                 const SectionTitle('Who is coming'),
-                if (items.isEmpty)
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: Text('No one has joined for this date yet.', textAlign: TextAlign.center)),
-                for (final r in items)
+                if (items.isNotEmpty) ...[
+                  TextField(
+                    controller: _search,
+                    onChanged: (v) => setState(() => _query = v),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: 'Search name, mobile number or reference',
+                      isDense: true,
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => setState(() {
+                                _search.clear();
+                                _query = '';
+                              }),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, children: [
+                    for (final (key, label) in [
+                      ('all', 'All ${items.length}'),
+                      ('waiting', 'Not yet ${items.where((r) => _live(r) && !_received(r)).length}'),
+                      ('received', 'Received ${items.where(_received).length}')
+                    ])
+                      ChoiceChip(label: Text(label), selected: _show == key, onSelected: (_) => setState(() => _show = key)),
+                  ]),
+                  const SizedBox(height: 8),
+                ],
+                if (items.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: Text('No one has joined for this date yet.', textAlign: TextAlign.center)),
+                if (items.isNotEmpty && !items.any(_matches))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text(_query.isEmpty ? 'No one in this list.' : 'No one matches "$_query" on this date. Try another date, or Find a booking for all dates.', textAlign: TextAlign.center),
+                  ),
+                for (final r in items.where(_matches))
                   Card(
                     child: ListTile(
+                      onTap: () => _open(r),
                       title: Text('${r['devotee_name'] ?? 'Devotee'} · ${r['people']} ${r['people'] == 1 ? 'person' : 'people'}'),
                       subtitle: Text([
                         if (r['devotee_phone'] != null) '${r['devotee_phone']}',
@@ -404,10 +487,12 @@ class _EventFormState extends State<EventForm> {
               },
             ),
             if (_image != null || (existingImage != null && !_removeImage))
-              IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() {
-                    _image = null;
-                    _removeImage = existingImage != null;
-                  })),
+              IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                        _image = null;
+                        _removeImage = existingImage != null;
+                      })),
           ]),
           const SectionTitle('Publishing'),
           SwitchListTile(

@@ -52,7 +52,9 @@ class AsyncList<T> extends StatefulWidget {
 class AsyncListState<T> extends State<AsyncList<T>> {
   late Future<List<T>> _future = widget.load();
 
-  void reload() => setState(() => _future = widget.load());
+  void reload() => setState(() {
+        _future = widget.load();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -81,8 +83,7 @@ class AsyncListState<T> extends State<AsyncList<T>> {
                   padding: const EdgeInsets.symmetric(vertical: 48),
                   child: Text(widget.empty, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
                 ),
-              for (final item in items)
-                Padding(padding: const EdgeInsets.only(bottom: 10), child: widget.itemBuilder(context, item, reload)),
+              for (final item in items) Padding(padding: const EdgeInsets.only(bottom: 10), child: widget.itemBuilder(context, item, reload)),
             ],
           );
         },
@@ -303,9 +304,7 @@ class DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          suffixIcon: clearable && value != null
-              ? IconButton(icon: const Icon(Icons.clear), onPressed: () => onChanged(null))
-              : const Icon(Icons.calendar_today_outlined),
+          suffixIcon: clearable && value != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () => onChanged(null)) : const Icon(Icons.calendar_today_outlined),
         ),
         child: Text(value == null ? '—' : formatDate(value!)),
       ),

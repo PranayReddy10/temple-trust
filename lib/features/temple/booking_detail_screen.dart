@@ -27,13 +27,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool _busy = false;
 
   Future<void> _markReceived() async {
-    final code = _b['code'] as String?;
+    // The scan code, or the reference when it was found by search.
+    final code = (_b['code'] as String?) ?? (_b['reference'] as String?);
     if (code == null) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Mark received?'),
-        content: Text('${_b['devotee_name'] ?? 'The devotee'} and party of ${_b['people']} have come for ${(_b['puja'] as Map?)?['name'] ?? 'the seva'}.'),
+        content: Text('${_b['devotee_name'] ?? 'The devotee'} and party of ${_b['people']} have come for ${(_b['puja'] as Map?)?['name'] ?? (_b['event'] as Map?)?['title'] ?? 'the seva'}.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Not yet')),
           FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Received')),
@@ -59,7 +60,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final b = _b;
-    final puja = (b['puja'] as Map?) ?? const {};
+    // A seva booking carries its puja; an event ticket its event.
+    final event = (b['event'] as Map?) ?? const {};
+    final puja = (b['puja'] as Map?) ?? {'name': event['title'], 'starts_at': event['starts_at']};
     final temple = (b['temple'] as Map?) ?? const {};
     final status = (b['status'] as Map?) ?? const {};
     final value = '${status['value']}';

@@ -33,9 +33,8 @@ Future<void> _act(BuildContext context, Future<void> Function() action, String d
   }
 }
 
-Widget _call(String? phone) => phone == null || phone.isEmpty
-    ? const SizedBox()
-    : TextButton.icon(onPressed: () => launchUrl(Uri(scheme: 'tel', path: phone)), icon: const Icon(Icons.call, size: 18), label: Text(phone));
+Widget _call(String? phone) =>
+    phone == null || phone.isEmpty ? const SizedBox() : TextButton.icon(onPressed: () => launchUrl(Uri(scheme: 'tel', path: phone)), icon: const Icon(Icons.call, size: 18), label: Text(phone));
 
 /// Who wants to manage which temple. Staff usually call before approving.
 class ClaimsQueueScreen extends StatelessWidget {
@@ -147,9 +146,7 @@ class RegistrationsQueueScreen extends StatelessWidget {
                       onPressed: () => _act(
                         context,
                         () => api.post('admin/registrations/${r['id']}/approve'),
-                        r['from_trust_app'] == true
-                            ? 'Listed as a draft. Approve their request to manage it under Requests.'
-                            : 'Listed as a draft temple.',
+                        r['from_trust_app'] == true ? 'Listed as a draft. Approve their request to manage it under Requests.' : 'Listed as a draft temple.',
                         reload,
                       ),
                       child: const Text('List as draft'),

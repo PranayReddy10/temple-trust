@@ -130,9 +130,7 @@ class TrustAccount {
         user: TrustUser.fromJson((j['user'] as Map).cast<String, dynamic>()),
         temples: [for (final t in (j['temples'] as List? ?? const [])) TrustTemple.fromJson((t as Map).cast<String, dynamic>())],
         claims: [for (final c in (j['claims'] as List? ?? const [])) TempleClaim.fromJson((c as Map).cast<String, dynamic>())],
-        registrations: [
-          for (final r in (j['registrations'] as List? ?? const [])) TempleRegistration.fromJson((r as Map).cast<String, dynamic>())
-        ],
+        registrations: [for (final r in (j['registrations'] as List? ?? const [])) TempleRegistration.fromJson((r as Map).cast<String, dynamic>())],
       );
 
   final TrustUser user;

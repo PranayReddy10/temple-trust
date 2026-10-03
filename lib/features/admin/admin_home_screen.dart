@@ -28,7 +28,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return (res['data'] as Map).cast<String, dynamic>();
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _open(Widget screen) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));

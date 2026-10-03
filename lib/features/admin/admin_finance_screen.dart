@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,6 +26,24 @@ class AdminFinanceScreen extends StatefulWidget {
 class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
   late Future<(Json, List<Json>)> _future = _load();
 
+  /// Narrows both lists to one temple: its name or town, or a reference.
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  bool _matches(Json row, {Json? temple}) {
+    final q = _search.text.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final t = temple ?? row;
+    return '${t['name'] ?? ''}'.toLowerCase().contains(q) ||
+        '${t['city'] ?? ''}'.toLowerCase().contains(q) ||
+        '${row['reference'] ?? ''}'.toLowerCase().contains(q);
+  }
+
   Future<(Json, List<Json>)> _load() async {
     final api = context.read<Session>().api;
     final overview = await api.get('admin/finance');
@@ -31,7 +51,9 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     return (_map(overview['data']), [for (final r in pending['data'] as List) _map(r)]);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _settle(Json t) async {
     final api = context.read<Session>().api;
@@ -58,9 +80,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                 value: all,
                 onChanged: (v) => setDialog(() => all = v),
                 title: Text('Include ${rupees(ahead)} paid in advance'),
-                subtitle: Text(all
-                    ? 'Bookings for today and days ahead are paid out now and can no longer be cancelled.'
-                    : 'Only seva days up to yesterday; the rest waits for a later settlement.'),
+                subtitle: Text(all ? 'Bookings for today and days ahead are paid out now and can no longer be cancelled.' : 'Only seva days up to yesterday; the rest waits for a later settlement.'),
               ),
             const SizedBox(height: 8),
             Text(account == null || account['is_complete'] != true
@@ -149,9 +169,26 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                     ]),
                   ),
                 ),
-                if (pending.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _search,
+                  onChanged: (_) => setState(() {}),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search temple, town or reference',
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => setState(_search.clear),
+                          ),
+                  ),
+                ),
+                if (pending.any((s) => _matches(s, temple: _map(s['temple'])))) ...[
                   const SectionTitle('Waiting for the transfer'),
-                  for (final s in pending)
+                  for (final s in pending.where((s) => _matches(s, temple: _map(s['temple']))))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Card(
@@ -165,9 +202,10 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                     ),
                 ],
                 const SectionTitle('Ready to settle'),
-                if (owed.isEmpty)
-                  const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once devotees pay for a seva.'))),
-                for (final t in owed)
+                if (owed.isEmpty) const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once devotees pay for a seva.'))),
+                if (owed.isNotEmpty && !owed.any(_matches))
+                  Card(child: ListTile(title: Text('No temple matches "${_search.text.trim()}"'), subtitle: const Text('Clear the search to see every temple.'))),
+                for (final t in owed.where(_matches))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Card(
@@ -334,27 +372,78 @@ class _AdminSettlementScreenState extends State<AdminSettlementScreen> {
   }
 }
 
-class _PaidSettlementsScreen extends StatelessWidget {
+class _PaidSettlementsScreen extends StatefulWidget {
   const _PaidSettlementsScreen();
 
   @override
+  State<_PaidSettlementsScreen> createState() => _PaidSettlementsScreenState();
+}
+
+class _PaidSettlementsScreenState extends State<_PaidSettlementsScreen> {
+  final _list = GlobalKey<AsyncListState<Json>>();
+  final _search = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _changed(String _) {
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () => _list.currentState?.reload());
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final q = _search.text.trim();
     return Scaffold(
       appBar: AppBar(title: const Text('Paid settlements')),
-      body: AsyncList<Json>(
-        load: () async {
-          final res = await context.read<Session>().api.get('admin/settlements', {'status': 'paid'});
-          return [for (final r in res['data'] as List) _map(r)];
-        },
-        empty: 'Nothing paid yet.',
-        itemBuilder: (context, s, reload) => Card(
-          child: ListTile(
-            title: Text('${_map(s['temple'])['name'] ?? ''} · ${rupees(s['net_paise'])}'),
-            subtitle: Text('${s['period']} · UTR ${s['transaction_ref'] ?? '—'}'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSettlementScreen(settlement: s))),
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            controller: _search,
+            onChanged: _changed,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              isDense: true,
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'Search temple, town, reference or UTR',
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        _search.clear();
+                        _changed('');
+                      },
+                    ),
+            ),
           ),
         ),
-      ),
+        Expanded(
+          child: AsyncList<Json>(
+            key: _list,
+            load: () async {
+              final q = _search.text.trim();
+              final res = await context.read<Session>().api.get('admin/settlements', {'status': 'paid', if (q.length >= 2) 'q': q});
+              return [for (final r in res['data'] as List) _map(r)];
+            },
+            empty: q.length >= 2 ? 'No paid settlement matches "$q".' : 'Nothing paid yet.',
+            itemBuilder: (context, s, reload) => Card(
+              child: ListTile(
+                title: Text('${_map(s['temple'])['name'] ?? ''} · ${rupees(s['net_paise'])}'),
+                subtitle: Text('${s['period']} · UTR ${s['transaction_ref'] ?? '—'}'),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSettlementScreen(settlement: s))),
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
