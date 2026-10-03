@@ -1,0 +1,6 @@
+# Copy to android/key.properties (never commit it) and fill in.
+# storeFile: the full path to your upload keystore.
+storeFile=/full/path/to/darshan-saathi-trust-upload.jks
+storePassword=the-keystore-password
+keyAlias=upload
+keyPassword=the-key-password
