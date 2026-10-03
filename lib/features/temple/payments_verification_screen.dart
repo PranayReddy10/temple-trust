@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
@@ -165,14 +166,21 @@ class _PaymentsVerificationScreenState extends State<PaymentsVerificationScreen>
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
-                Card(
-                  color: color.withValues(alpha: 0.08),
-                  child: ListTile(
-                    leading: Icon(icon, color: color, size: 32),
-                    title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-                    subtitle: Text(body),
+                if (status == 'rejected')
+                  RejectionNotice(
+                    reason: kyc['rejection_reason'] as String?,
+                    rejectedAt: DateTime.tryParse('${kyc['rejected_at']}')?.toLocal(),
+                    canFix: canEdit,
+                  )
+                else
+                  Card(
+                    color: color.withValues(alpha: 0.08),
+                    child: ListTile(
+                      leading: Icon(icon, color: color, size: 32),
+                      title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                      subtitle: Text(body),
+                    ),
                   ),
-                ),
                 if (!canEdit)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
@@ -241,6 +249,74 @@ class _PaymentsVerificationScreenState extends State<PaymentsVerificationScreen>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// The team's "no", said plainly: that it was not approved, when, the reason
+/// in the team's own words, and what to do next.
+class RejectionNotice extends StatelessWidget {
+  const RejectionNotice({super.key, required this.reason, this.rejectedAt, this.canFix = true, this.onTap});
+
+  final String? reason;
+  final DateTime? rejectedAt;
+  final bool canFix;
+
+  /// When set (on the home screen), the whole notice opens the fix.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final red = theme.colorScheme.error;
+    return Card(
+      color: red.withValues(alpha: 0.07),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: red.withValues(alpha: 0.6), width: 1.5)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.cancel, color: red, size: 26),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Payments not approved', style: theme.textTheme.titleMedium?.copyWith(color: red, fontWeight: FontWeight.w800)),
+              ),
+              if (onTap != null) Icon(Icons.chevron_right, color: red),
+            ]),
+            if (rejectedAt != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, left: 36),
+                child: Text('By the ${Brand.name} team on ${DateFormat('d MMM yyyy, h:mm a').format(rejectedAt!)}', style: theme.textTheme.bodySmall),
+              ),
+            const SizedBox(height: 12),
+            Text('REASON', style: theme.textTheme.labelSmall?.copyWith(color: red, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border(left: BorderSide(color: red, width: 4)),
+              ),
+              child: Text(
+                (reason ?? '').trim().isEmpty ? 'The team did not give a reason. Use Help & support to ask.' : reason!.trim(),
+                style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, height: 1.35),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              canFix
+                  ? 'What to do: correct what the reason says (a clearer photo, the right document, matching names), then tap "Send again for approval" below. Paid sevas, tickets and the hundi stay off until then.'
+                  : 'The temple\'s owner can correct this and send it again. Paid sevas, tickets and the hundi stay off until then.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ]),
+        ),
       ),
     );
   }

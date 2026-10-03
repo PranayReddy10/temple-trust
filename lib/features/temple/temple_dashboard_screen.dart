@@ -156,7 +156,12 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                     padding: EdgeInsets.only(top: 10),
                     child: Text('Not yet visible to devotees. Fill in timings, sevas and photos; the editors publish it once reviewed.'),
                   ),
-                if (s['payments'] != null && s['payments'] != 'approved')
+                if (s['payments'] == 'rejected')
+                  RejectionNotice(
+                    reason: s['payments_rejection_reason'] as String?,
+                    onTap: () => _open(PaymentsVerificationScreen(templeId: t.id)),
+                  )
+                else if (s['payments'] != null && s['payments'] != 'approved')
                   Card(
                     color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
                     child: ListTile(

@@ -183,6 +183,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 for (final s in recent)
                   _SettlementTile(s, onTap: () => _open(SettlementDetailScreen(templeId: widget.templeId, settlementId: _n(s['id'])))),
                 const SectionTitle('Paid to'),
+                if ((account?['kyc'] as Map?)?['status'] == 'rejected')
+                  RejectionNotice(
+                    reason: (account!['kyc'] as Map)['rejection_reason'] as String?,
+                    rejectedAt: DateTime.tryParse('${(account['kyc'] as Map)['rejected_at']}')?.toLocal(),
+                    canFix: f['can_edit_payout_account'] == true,
+                    onTap: () => _open(PaymentsVerificationScreen(templeId: widget.templeId)),
+                  ),
                 _PayoutCard(
                   account: account,
                   canEdit: f['can_edit_payout_account'] == true,
