@@ -221,7 +221,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: () => setState(() => _future = _load()));
           final t = snap.data!;
           final about = t['about'] == null ? null : _map(t['about']);

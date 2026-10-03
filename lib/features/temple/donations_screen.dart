@@ -52,7 +52,7 @@ class _DonationsScreenState extends State<DonationsScreen> {
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final d = snap.data!;
           final today = _map(d['today']);
@@ -63,7 +63,12 @@ class _DonationsScreenState extends State<DonationsScreen> {
           final theme = Theme.of(context);
 
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               physics: const AlwaysScrollableScrollPhysics(),

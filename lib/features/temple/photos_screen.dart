@@ -131,15 +131,21 @@ class _PhotosScreenState extends State<PhotosScreen> {
       body: FutureBuilder<List<Json>>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           final photos = snap.data!;
           if (photos.isEmpty) {
             return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No photos yet. The first one you upload becomes the cover.', textAlign: TextAlign.center)));
           }
           return RefreshIndicator(
-            onRefresh: () async => _reload(),
+            onRefresh: () async {
+              _reload();
+              try {
+                await _future;
+              } catch (_) {}
+            },
             child: GridView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 180, mainAxisSpacing: 8, crossAxisSpacing: 8),
               itemCount: photos.length,

@@ -64,7 +64,7 @@ class AsyncListState<T> extends State<AsyncList<T>> {
       child: FutureBuilder<List<T>>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
