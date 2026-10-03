@@ -164,7 +164,8 @@ class _NewSupportScreenState extends State<NewSupportScreen> {
             const SizedBox(height: 12),
           ],
           ApiTextField(controller: _subject, label: 'Subject', field: 'subject', error: _error, required: true),
-          ApiTextField(controller: _body, label: 'Your message', field: 'body', error: _error, maxLines: 6, required: true, hint: 'For a payout, give the settlement reference; for a booking, its reference.'),
+          ApiTextField(
+              controller: _body, label: 'Your message', field: 'body', error: _error, maxLines: 6, required: true, hint: 'For a payout, give the settlement reference; for a booking, its reference.'),
           FilledButton.icon(
             onPressed: _busy ? null : _send,
             icon: const Icon(Icons.send_outlined),
@@ -188,6 +189,10 @@ class SupportTicketScreen extends StatefulWidget {
 
 class _SupportTicketScreenState extends State<SupportTicketScreen> {
   late Future<Json> _future = _load();
+
+  void _retry() {
+    _future = _load();
+  }
   final _reply = TextEditingController();
   bool _busy = false;
 
@@ -205,7 +210,11 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
     try {
       await context.read<Session>().api.post('support/${widget.reference}/replies', {'body': _reply.text.trim()});
       _reply.clear();
-      if (mounted) setState(() => _future = _load());
+      if (mounted) {
+        setState(() {
+          _future = _load();
+        });
+      }
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -222,7 +231,9 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: () => setState(() => _future = _load()));
+          if (snap.hasError) {
+            return ErrorView(error: snap.error!, onRetry: () => setState(() => _retry()));
+          }
           final t = snap.data!;
           final about = t['about'] == null ? null : _map(t['about']);
           final messages = [for (final m in (t['messages'] as List? ?? const [])) _map(m)];
@@ -252,10 +263,12 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
                 children: [
                   Text('${t['subject']}', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 4),
-                  Text([
-                    '${_map(t['status'])['label'] ?? ''}',
-                    if (about?['label'] != null) '${about!['label']}',
-                  ].join(' · '), style: theme.textTheme.bodySmall),
+                  Text(
+                      [
+                        '${_map(t['status'])['label'] ?? ''}',
+                        if (about?['label'] != null) '${about!['label']}',
+                      ].join(' · '),
+                      style: theme.textTheme.bodySmall),
                   const SizedBox(height: 16),
                   bubble('You', '${t['body']}', _when(t['created_at']), false),
                   for (final m in messages) bubble(m['from_staff'] == true ? 'Darshan Saathi team' : 'You', '${m['body']}', _when(m['created_at']), m['from_staff'] == true),

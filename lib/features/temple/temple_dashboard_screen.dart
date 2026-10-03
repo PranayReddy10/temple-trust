@@ -42,7 +42,9 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
     return TrustTemple.fromJson((res['data'] as Map).cast<String, dynamic>());
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _setStatus(String status) async {
     try {
@@ -81,7 +83,9 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
         'category': 'exterior',
         'is_primary': true,
         'is_published': true,
-      }, files: [UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())]);
+      }, files: [
+        UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())
+      ]);
       if (mounted) showMessage(context, 'Cover photo changed.');
       _reload();
     } catch (e) {
@@ -221,8 +225,8 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                             caption: s['payments'] != null && s['payments'] != 'approved'
                                 ? 'Opens after payments are approved'
                                 : s['hundi_enabled'] == false
-                                ? 'Online hundi is off'
-                                : '${n('hundi_today_count')} gifts · ${rupees(s['hundi_month_paise'])} this month',
+                                    ? 'Online hundi is off'
+                                    : '${n('hundi_today_count')} gifts · ${rupees(s['hundi_month_paise'])} this month',
                           ),
                         ),
                         const Icon(Icons.volunteer_activism_outlined),
@@ -377,9 +381,7 @@ class _Cover extends StatelessWidget {
               bottom: 10,
               child: FilledButton.tonalIcon(
                 onPressed: busy ? null : onChange,
-                icon: busy
-                    ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.photo_camera_outlined, size: 18),
+                icon: busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_camera_outlined, size: 18),
                 label: Text(busy ? 'Uploading…' : (temple.imageUrl == null ? 'Add cover photo' : 'Change cover')),
               ),
             ),

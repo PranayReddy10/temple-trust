@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -30,8 +32,29 @@ class _BookingsScreenState extends State<BookingsScreen> {
   /// The day's totals, sent with the list when a day is chosen.
   Json? _summary;
 
+  /// Name, phone number (or part of it) or reference; searched on the server.
+  final _search = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _searchChanged(String _) {
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () => _list.currentState?.reload());
+  }
+
   Future<List<Json>> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/bookings', {'date': _day == null ? null : formatDate(_day!)});
+    final q = _search.text.trim();
+    final res = await context.read<Session>().api.get('temples/${widget.templeId}/bookings', {
+      'date': _day == null ? null : formatDate(_day!),
+      if (q.length >= 2) 'q': q,
+    });
     final summary = (res['summary'] as Map?)?.cast<String, dynamic>();
     if (mounted) setState(() => _summary = summary);
     return [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()];
@@ -115,12 +138,36 @@ class _BookingsScreenState extends State<BookingsScreen> {
               ),
             ]),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: TextField(
+              controller: _search,
+              onChanged: _searchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search name, mobile number or reference',
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _search.clear();
+                          _searchChanged('');
+                        },
+                      ),
+              ),
+            ),
+          ),
           Expanded(
             child: AsyncList<Json>(
               key: _list,
               load: _load,
               header: _header(context),
-              empty: _day == null ? 'No bookings yet.' : 'No bookings for this day.',
+              empty: _search.text.trim().length >= 2
+                  ? 'No booking matches "${_search.text.trim()}"${_day == null ? '' : ' on this day'}.'
+                  : (_day == null ? 'No bookings yet.' : 'No bookings for this day.'),
               itemBuilder: (context, b, reload) {
                 final status = (b['status'] as Map?) ?? const {};
                 final puja = (b['puja'] as Map?) ?? const {};

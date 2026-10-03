@@ -103,6 +103,7 @@ class _SevaFormState extends State<SevaForm> {
   late bool _appBooking = _raw['app_booking_enabled'] == true;
   late bool _perPerson = _app['fee_per_person'] ?? true;
   late bool _published = _r['is_published'] ?? true;
+
   /// Time slots, like show times: devotees pick one when they book.
   late final List<_Slot> _slots = [
     for (final r in (_raw['slots'] as List? ?? const [])) _Slot.fromJson((r as Map).cast<String, dynamic>()),

@@ -20,9 +20,20 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   static const _fields = [
-    'short_description', 'address', 'city', 'district', 'pincode',
-    'official_website', 'contact_phone', 'contact_email',
-    'dress_code', 'photography_policy', 'mobile_policy', 'footwear_policy', 'entry_rules', 'queue_information',
+    'short_description',
+    'address',
+    'city',
+    'district',
+    'pincode',
+    'official_website',
+    'contact_phone',
+    'contact_email',
+    'dress_code',
+    'photography_policy',
+    'mobile_policy',
+    'footwear_policy',
+    'entry_rules',
+    'queue_information',
   ];
 
   late final Map<String, TextEditingController> _c = {

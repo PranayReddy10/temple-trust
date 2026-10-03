@@ -48,7 +48,9 @@ class _PaymentsVerificationScreenState extends State<PaymentsVerificationScreen>
 
   Future<Json> _load() async => _map((await context.read<Session>().api.get('temples/${widget.templeId}/finance'))['data']);
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   @override
   void dispose() {
@@ -89,11 +91,13 @@ class _PaymentsVerificationScreenState extends State<PaymentsVerificationScreen>
       final files = <UploadFile>[
         for (final e in _files.entries) UploadFile(field: e.key, filename: e.value.name, bytes: await e.value.readAsBytes()),
       ];
-      await api.multipart('temples/${widget.templeId}/payout-account/kyc', fields: {
-        if (_name.text.trim().isNotEmpty) 'kyc_name': _name.text.trim(),
-        if (_aadhaar.text.trim().isNotEmpty) 'aadhaar_number': _aadhaar.text.trim(),
-        if (_proofKind != null) 'temple_proof_kind': _proofKind,
-      }, files: files);
+      await api.multipart('temples/${widget.templeId}/payout-account/kyc',
+          fields: {
+            if (_name.text.trim().isNotEmpty) 'kyc_name': _name.text.trim(),
+            if (_aadhaar.text.trim().isNotEmpty) 'aadhaar_number': _aadhaar.text.trim(),
+            if (_proofKind != null) 'temple_proof_kind': _proofKind,
+          },
+          files: files);
       if (!mounted) return;
       _files.clear();
       _aadhaar.clear();
@@ -136,7 +140,12 @@ class _PaymentsVerificationScreenState extends State<PaymentsVerificationScreen>
             'approved' => (Colors.green.shade700, Icons.verified, 'Approved', 'Devotees can pay your temple in the app: paid sevas, paid event tickets and the online hundi.'),
             'pending' => (theme.colorScheme.tertiary, Icons.hourglass_top, 'Being checked', 'Our team is checking your details. Payments open once they are approved; we may call you.'),
             'rejected' => (theme.colorScheme.error, Icons.error_outline, 'Not approved', '${kyc['rejection_reason'] ?? 'Please check the details and send them again.'}'),
-            _ => (theme.colorScheme.primary, Icons.lock_outline, 'Not set up', 'To take money in the app, add the bank account and the documents below. This keeps anyone from collecting money in a temple\'s name falsely.'),
+            _ => (
+                theme.colorScheme.primary,
+                Icons.lock_outline,
+                'Not set up',
+                'To take money in the app, add the bank account and the documents below. This keeps anyone from collecting money in a temple\'s name falsely.'
+              ),
           };
 
           Widget doc(String field, String label, String hint, {bool selfie = false}) {
@@ -227,8 +236,7 @@ class _PaymentsVerificationScreenState extends State<PaymentsVerificationScreen>
                   value: _proofKind,
                   onChanged: (v) => setState(() => _proofKind = v as String?),
                 ),
-                if (_error?.field('temple_proof_kind') != null)
-                  Text(_error!.field('temple_proof_kind')!, style: TextStyle(color: theme.colorScheme.error)),
+                if (_error?.field('temple_proof_kind') != null) Text(_error!.field('temple_proof_kind')!, style: TextStyle(color: theme.colorScheme.error)),
                 const SizedBox(height: 8),
                 doc('temple_proof', 'Temple proof document', 'A photo of the document that shows you represent this temple.'),
                 if (fieldError != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(fieldError, style: TextStyle(color: theme.colorScheme.error))),

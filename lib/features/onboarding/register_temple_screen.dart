@@ -22,9 +22,21 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
   final _form = GlobalKey<FormState>();
   final _c = {
     for (final k in [
-      'name', 'alternate_names', 'deity_name', 'address', 'city', 'district', 'pincode',
-      'description', 'history', 'built_period', 'festivals', 'timings_note', 'contact_phone',
-      'official_website', 'submitter_note',
+      'name',
+      'alternate_names',
+      'deity_name',
+      'address',
+      'city',
+      'district',
+      'pincode',
+      'description',
+      'history',
+      'built_period',
+      'festivals',
+      'timings_note',
+      'contact_phone',
+      'official_website',
+      'submitter_note',
     ])
       k: TextEditingController(),
   };
@@ -72,19 +84,20 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
     final session = context.read<Session>();
     try {
       final files = <UploadFile>[
-        for (var i = 0; i < _photos.length; i++)
-          UploadFile(field: 'photos[$i]', filename: _photos[i].name, bytes: await _photos[i].readAsBytes()),
+        for (var i = 0; i < _photos.length; i++) UploadFile(field: 'photos[$i]', filename: _photos[i].name, bytes: await _photos[i].readAsBytes()),
       ];
-      await session.api.multipart('registrations', fields: {
-        for (final e in _c.entries)
-          if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
-        'deity_id': _deityId,
-        'state_id': _stateId,
-        'submitter_role': _role,
-        'opens_at': formatTime(_opens),
-        'closes_at': formatTime(_closes),
-        ..._fix!.toFields(),
-      }, files: files);
+      await session.api.multipart('registrations',
+          fields: {
+            for (final e in _c.entries)
+              if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
+            'deity_id': _deityId,
+            'state_id': _stateId,
+            'submitter_role': _role,
+            'opens_at': formatTime(_opens),
+            'closes_at': formatTime(_closes),
+            ..._fix!.toFields(),
+          },
+          files: files);
       await session.refresh();
       if (!mounted) return;
       showMessage(context, 'Thank you. Our team will review the temple and call you.');
@@ -161,10 +174,8 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final p in _photos)
-                  Chip(label: Text(p.name, overflow: TextOverflow.ellipsis), onDeleted: () => setState(() => _photos.remove(p))),
-                if (_photos.length < options.maxRegistrationPhotos)
-                  ActionChip(avatar: const Icon(Icons.add_a_photo_outlined, size: 18), label: const Text('Add photos'), onPressed: _addPhotos),
+                for (final p in _photos) Chip(label: Text(p.name, overflow: TextOverflow.ellipsis), onDeleted: () => setState(() => _photos.remove(p))),
+                if (_photos.length < options.maxRegistrationPhotos) ActionChip(avatar: const Icon(Icons.add_a_photo_outlined, size: 18), label: const Text('Add photos'), onPressed: _addPhotos),
               ],
             ),
             const SizedBox(height: 24),

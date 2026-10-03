@@ -31,7 +31,9 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     return (_map(overview['data']), [for (final r in pending['data'] as List) _map(r)]);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _settle(Json t) async {
     final api = context.read<Session>().api;
@@ -58,9 +60,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                 value: all,
                 onChanged: (v) => setDialog(() => all = v),
                 title: Text('Include ${rupees(ahead)} paid in advance'),
-                subtitle: Text(all
-                    ? 'Bookings for today and days ahead are paid out now and can no longer be cancelled.'
-                    : 'Only seva days up to yesterday; the rest waits for a later settlement.'),
+                subtitle: Text(all ? 'Bookings for today and days ahead are paid out now and can no longer be cancelled.' : 'Only seva days up to yesterday; the rest waits for a later settlement.'),
               ),
             const SizedBox(height: 8),
             Text(account == null || account['is_complete'] != true
@@ -165,8 +165,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                     ),
                 ],
                 const SectionTitle('Ready to settle'),
-                if (owed.isEmpty)
-                  const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once devotees pay for a seva.'))),
+                if (owed.isEmpty) const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once devotees pay for a seva.'))),
                 for (final t in owed)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),

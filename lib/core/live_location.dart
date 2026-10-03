@@ -117,9 +117,7 @@ class _LiveLocationFieldState extends State<LiveLocationField> {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _busy ? null : _capture,
-            icon: _busy
-                ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.gps_fixed),
+            icon: _busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.gps_fixed),
             label: Text(_busy ? 'Reading GPS…' : (v == null ? 'Use my current location' : 'Take it again')),
           ),
         ]),

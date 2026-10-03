@@ -29,7 +29,9 @@ class _DonationsScreenState extends State<DonationsScreen> {
     return _map(res['data']);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _setAccepting(bool on) async {
     setState(() => _saving = true);

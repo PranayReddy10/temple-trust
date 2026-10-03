@@ -28,7 +28,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
     return [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()];
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _upload() async {
     final session = context.read<Session>();
@@ -41,8 +43,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
       builder: (c) => SimpleDialog(
         title: const Text('What do these show?'),
         children: [
-          for (final o in categories.isEmpty ? const [Option('gallery', 'Gallery')] : categories)
-            SimpleDialogOption(onPressed: () => Navigator.pop(c, '${o.value}'), child: Text(o.label)),
+          for (final o in categories.isEmpty ? const [Option('gallery', 'Gallery')] : categories) SimpleDialogOption(onPressed: () => Navigator.pop(c, '${o.value}'), child: Text(o.label)),
         ],
       ),
     );
@@ -52,8 +53,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
     var done = 0;
     try {
       for (final f in picked) {
-        await session.api.multipart('temples/${widget.templeId}/photos',
-            fields: {'category': category}, files: [UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())]);
+        await session.api.multipart('temples/${widget.templeId}/photos', fields: {'category': category}, files: [UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())]);
         done++;
       }
     } on ApiException catch (e) {
@@ -76,8 +76,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (p['is_primary'] != true)
-            ListTile(leading: const Icon(Icons.star_outline), title: const Text('Make cover photo'), onTap: () => Navigator.pop(c, 'primary')),
+          if (p['is_primary'] != true) ListTile(leading: const Icon(Icons.star_outline), title: const Text('Make cover photo'), onTap: () => Navigator.pop(c, 'primary')),
           ListTile(
             leading: Icon(p['is_published'] == true ? Icons.visibility_off_outlined : Icons.visibility_outlined),
             title: Text(p['is_published'] == true ? 'Hide from devotees' : 'Show to devotees'),
@@ -157,8 +156,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Stack(fit: StackFit.expand, children: [
-                      Image.network('${urls['thumbnail'] ?? urls['medium'] ?? urls['original']}', fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black12, child: Icon(Icons.image_not_supported_outlined))),
+                      Image.network('${urls['thumbnail'] ?? urls['medium'] ?? urls['original']}',
+                          fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black12, child: Icon(Icons.image_not_supported_outlined))),
                       if (p['is_published'] != true) const ColoredBox(color: Color(0x88000000)),
                       Positioned(
                         left: 6,

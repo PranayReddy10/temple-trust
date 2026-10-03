@@ -75,7 +75,8 @@ class _EventsScreenState extends State<EventsScreen> {
                         if (e['type'] == 'bhajan') StatusChip('Bhajan', color: tertiary),
                         if (e['recurrence'] == 'weekly') const StatusChip('Every week'),
                         if (joinable) StatusChip(reg['is_paid'] == true ? '${reg['price'] ?? 'Paid'}' : 'Free', color: const Color(0xFF2E7D55)),
-                        if (joinable) Text('${summary['going'] ?? reg['going'] ?? 0} going${summary['next_on'] != null ? ' on ${summary['next_on']}' : ''}', style: Theme.of(context).textTheme.bodySmall),
+                        if (joinable)
+                          Text('${summary['going'] ?? reg['going'] ?? 0} going${summary['next_on'] != null ? ' on ${summary['next_on']}' : ''}', style: Theme.of(context).textTheme.bodySmall),
                       ]),
                     ),
                     if (joinable)
@@ -133,9 +134,7 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
     if (q.isEmpty) return true;
     final digits = q.replaceAll(RegExp(r'\D'), '');
     final phone = '${r['devotee_phone'] ?? ''}'.replaceAll(RegExp(r'\D'), '');
-    return '${r['devotee_name'] ?? ''}'.toLowerCase().contains(q) ||
-        '${r['reference'] ?? ''}'.toLowerCase().contains(q.replaceAll(' ', '')) ||
-        (digits.length >= 3 && phone.contains(digits));
+    return '${r['devotee_name'] ?? ''}'.toLowerCase().contains(q) || '${r['reference'] ?? ''}'.toLowerCase().contains(q.replaceAll(' ', '')) || (digits.length >= 3 && phone.contains(digits));
   }
 
   static String _status(Json r) => '${(r['status'] as Map?)?['value']}';
@@ -146,9 +145,7 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
   Future<void> _open(Json r) async {
     try {
       final res = await context.read<Session>().api.get('bookings/search', {'q': '${r['reference']}'});
-      final full = [for (final x in (res['data'] as List? ?? const [])) (x as Map).cast<String, dynamic>()]
-          .where((x) => x['reference'] == r['reference'])
-          .firstOrNull;
+      final full = [for (final x in (res['data'] as List? ?? const [])) (x as Map).cast<String, dynamic>()].where((x) => x['reference'] == r['reference']).firstOrNull;
       if (!mounted) return;
       if (full == null) {
         showMessage(context, 'Could not open this ticket.');
@@ -166,7 +163,9 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
     return (res['data'] as Map).cast<String, dynamic>();
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -248,13 +247,16 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
                   ),
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, children: [
-                    for (final (key, label) in [('all', 'All ${items.length}'), ('waiting', 'Not yet ${items.where((r) => _live(r) && !_received(r)).length}'), ('received', 'Received ${items.where(_received).length}')])
+                    for (final (key, label) in [
+                      ('all', 'All ${items.length}'),
+                      ('waiting', 'Not yet ${items.where((r) => _live(r) && !_received(r)).length}'),
+                      ('received', 'Received ${items.where(_received).length}')
+                    ])
                       ChoiceChip(label: Text(label), selected: _show == key, onSelected: (_) => setState(() => _show = key)),
                   ]),
                   const SizedBox(height: 8),
                 ],
-                if (items.isEmpty)
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: Text('No one has joined for this date yet.', textAlign: TextAlign.center)),
+                if (items.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: Text('No one has joined for this date yet.', textAlign: TextAlign.center)),
                 if (items.isNotEmpty && !items.any(_matches))
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
@@ -485,10 +487,12 @@ class _EventFormState extends State<EventForm> {
               },
             ),
             if (_image != null || (existingImage != null && !_removeImage))
-              IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() {
-                    _image = null;
-                    _removeImage = existingImage != null;
-                  })),
+              IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                        _image = null;
+                        _removeImage = existingImage != null;
+                      })),
           ]),
           const SectionTitle('Publishing'),
           SwitchListTile(
