@@ -249,6 +249,36 @@ TimeOfDay? parseTime(dynamic v) {
   return TimeOfDay(hour: int.tryParse(p[0]) ?? 0, minute: int.tryParse(p[1]) ?? 0);
 }
 
+/// A time as people read it: "17:30" or a TimeOfDay → "5:30 PM". The API
+/// keeps "HH:mm" (formatTime); this is only for showing.
+String? showTime(dynamic v) {
+  TimeOfDay? t = v is TimeOfDay ? v : null;
+  if (v is String) {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})(:\d{2})?$').firstMatch(v.trim());
+    if (m == null) return v;
+    t = TimeOfDay(hour: int.parse(m.group(1)!) % 24, minute: int.parse(m.group(2)!));
+  }
+  if (t == null) return null;
+  final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+  return '$h:${t.minute.toString().padLeft(2, '0')} ${t.period == DayPeriod.am ? 'AM' : 'PM'}';
+}
+
+/// A moment from the API ("2026-10-03T12:00:00Z") in local time: "3 Oct, 5:30 PM".
+String? showDateTime(dynamic iso) {
+  final d = DateTime.tryParse('${iso ?? ''}')?.toLocal();
+  return d == null ? null : DateFormat('d MMM, h:mm a').format(d);
+}
+
+/// Opens the time picker on the 12-hour clock, whatever the phone is set to.
+Future<TimeOfDay?> pickTime(BuildContext context, TimeOfDay initial) => showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+
 String formatDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// A tappable row that opens a time picker.
@@ -264,7 +294,7 @@ class TimeField extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () async {
-        final t = await showTimePicker(context: context, initialTime: value ?? const TimeOfDay(hour: 6, minute: 0));
+        final t = await pickTime(context, value ?? const TimeOfDay(hour: 6, minute: 0));
         if (t != null) onChanged(t);
       },
       child: InputDecorator(
@@ -272,7 +302,7 @@ class TimeField extends StatelessWidget {
           labelText: label,
           suffixIcon: value == null ? const Icon(Icons.schedule) : IconButton(icon: const Icon(Icons.clear), onPressed: () => onChanged(null)),
         ),
-        child: Text(value == null ? '—' : formatTime(value)!),
+        child: Text(value == null ? '—' : showTime(value)!),
       ),
     );
   }

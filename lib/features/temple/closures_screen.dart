@@ -50,7 +50,7 @@ class _ClosuresScreenState extends State<ClosuresScreen> {
               title: Text('${c['reason']}'),
               subtitle: Text([
                 dates,
-                c['is_full_day'] == true ? 'Closed all day' : 'Open ${c['opens_at'] ?? '?'} – ${c['closes_at'] ?? '?'}',
+                c['is_full_day'] == true ? 'Closed all day' : 'Open ${showTime(c['opens_at']) ?? '?'} – ${showTime(c['closes_at']) ?? '?'}',
                 if (c['notes'] != null) c['notes'],
               ].join(' · ')),
               leading: c['is_active_today'] == true ? const StatusChip('Today') : null,

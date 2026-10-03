@@ -118,7 +118,7 @@ class RegistrationsQueueScreen extends StatelessWidget {
                     StatusChip(r['from_trust_app'] == true ? 'Temple team' : 'Devotee'),
                   ]),
                   Text([r['deity'], r['city'], r['district'], r['state'], r['pincode']].where((e) => e != null).join(' · ')),
-                  if (r['opens_at'] != null) Text('Open ${r['opens_at']} – ${r['closes_at'] ?? '?'}'),
+                  if (r['opens_at'] != null) Text('Open ${showTime(r['opens_at'])} – ${showTime(r['closes_at']) ?? '?'}'),
                   if (r['description'] != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${r['description']}')),
                   const SizedBox(height: 6),
                   Text('From ${s['name'] ?? 'someone'} (${s['role']})${s['email'] != null ? ' · ${s['email']}' : ''}', style: Theme.of(context).textTheme.bodySmall),

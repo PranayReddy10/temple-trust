@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/widgets.dart';
 import 'find_booking_screen.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -196,7 +197,7 @@ class _ScanScreenState extends State<ScanScreen> {
     final status = '${(b['status'] as Map?)?['value']}';
     final (color, icon, title) = switch (_outcome) {
       'verified' => (const Color(0xFF2E7D55), Icons.check_circle, 'Received — welcome them in'),
-      'already_verified' => (const Color(0xFFC9A227), Icons.warning_amber_rounded, 'Already used${b['verified_at'] != null ? ' at ${b['verified_at']}' : ''}'),
+      'already_verified' => (const Color(0xFFC9A227), Icons.warning_amber_rounded, 'Already used${showDateTime(b['verified_at']) != null ? ' on ${showDateTime(b['verified_at'])}' : ''}'),
       _ => status == 'confirmed'
           ? (Theme.of(context).colorScheme.primary, Icons.confirmation_number_outlined, 'Valid $what')
           : (Theme.of(context).colorScheme.error, Icons.block, '${(b['status'] as Map?)?['label']}'),
