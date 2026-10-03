@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../temple/booking_detail_screen.dart';
 
@@ -146,11 +147,7 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
                             final people = (b['people'] as num?)?.toInt() ?? 1;
                             return Card(
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: day == today ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
-                                  foregroundColor: day == today ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
-                                  child: Icon(isTicket ? Icons.confirmation_number_outlined : Icons.local_fire_department_outlined, size: 20),
-                                ),
+                                leading: InitialsAvatar(name, color: day == today ? theme.colorScheme.primary : Palette.stone),
                                 title: Text('$name · $people ${people == 1 ? 'person' : 'people'}'),
                                 subtitle: Text([
                                   '${what ?? (isTicket ? 'Event' : 'Seva')}',

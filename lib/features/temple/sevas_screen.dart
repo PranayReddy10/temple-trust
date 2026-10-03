@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -46,8 +47,8 @@ class _SevasScreenState extends State<SevasScreen> {
           return Card(
             child: ListTile(
               leading: p['image_url'] == null
-                  ? const Icon(Icons.local_fire_department_outlined)
-                  : ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network('${p['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
+                  ? const IconBadge(Icons.local_fire_department_outlined, color: Palette.saffron)
+                  : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network('${p['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
               title: Text('${p['name']}'),
               subtitle: Text([
                 '${fee['label'] ?? ''}',

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../temple/finance_screen.dart';
 
@@ -136,7 +137,6 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
           final month = _map(o['month']);
           final temples = [for (final t in (o['temples'] as List? ?? const [])) _map(t)];
           final owed = temples.where((t) => _n(t['ready_gross_paise']) > 0).toList();
-          final theme = Theme.of(context);
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -149,25 +149,23 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(children: [
-                      Row(children: [
-                        Expanded(child: Figure('Sevas today', rupees(today['amount_paise']), emphasis: true, color: theme.colorScheme.primary, caption: '${_n(today['bookings'])} paid bookings')),
-                        Expanded(child: Figure('Collected today', rupees(collected['amount_paise']), caption: 'through the gateway')),
-                      ]),
-                      const Divider(height: 24),
-                      Row(children: [
-                        Expanded(child: Figure('This month', rupees(month['amount_paise']), caption: '${_n(month['bookings'])} bookings')),
-                        Expanded(child: Figure('Owed to temples', rupees(o['ready_net_paise']), caption: 'paid, not yet settled')),
-                      ]),
-                      const SizedBox(height: 12),
-                      Row(children: [
-                        Expanded(child: Figure('Being paid', rupees(o['in_payout_net_paise']), caption: '${pending.length} to transfer')),
-                      ]),
+                HeroPanel(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('SEVAS TODAY', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(rupees(today['amount_paise']), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 32, fontWeight: FontWeight.w600, height: 1.1)),
+                    ),
+                    Text('${_n(today['bookings'])} paid bookings · ${rupees(collected['amount_paise'])} collected through the gateway', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(child: _Panel('This month', rupees(month['amount_paise']), '${_n(month['bookings'])} bookings')),
+                      Expanded(child: _Panel('Owed to temples', rupees(o['ready_net_paise']), 'paid, not yet settled')),
+                      Expanded(child: _Panel('Being paid', rupees(o['in_payout_net_paise']), '${pending.length} to transfer')),
                     ]),
-                  ),
+                  ]),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -445,5 +443,22 @@ class _PaidSettlementsScreenState extends State<_PaidSettlementsScreen> {
         ),
       ]),
     );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  const _Panel(this.label, this.value, this.caption);
+
+  final String label;
+  final String value;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, height: 1.2))),
+      Text(caption, style: const TextStyle(color: Colors.white70, fontSize: 10.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+    ]);
   }
 }

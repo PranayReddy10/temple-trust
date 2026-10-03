@@ -1,0 +1,442 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api_client.dart';
+
+/// One interface language the app can show.
+class AppLanguage {
+  const AppLanguage(this.code, this.name, this.nativeName);
+
+  final String code;
+  final String name;
+  final String nativeName;
+
+  Locale get locale => Locale(code);
+
+  /// The five the interface is translated into; the same set as the devotee
+  /// app, so a temple team sees the app in the language its devotees use.
+  static const List<AppLanguage> all = [
+    AppLanguage('en', 'English', 'English'),
+    AppLanguage('te', 'Telugu', 'తెలుగు'),
+    AppLanguage('hi', 'Hindi', 'हिन्दी'),
+    AppLanguage('ta', 'Tamil', 'தமிழ்'),
+    AppLanguage('kn', 'Kannada', 'ಕನ್ನಡ'),
+  ];
+
+  static AppLanguage byCode(String code) => all.firstWhere((l) => l.code == code, orElse: () => all.first);
+}
+
+/// The chosen interface language, kept on the device. The API is told too,
+/// so labels it sends (statuses, option lists) come back in the same tongue
+/// where the server has them.
+class LocaleController extends ChangeNotifier {
+  LocaleController(this.api);
+
+  final ApiClient api;
+
+  static const _key = 'trust.locale';
+  static const supportedLocales = [Locale('en'), Locale('te'), Locale('hi'), Locale('ta'), Locale('kn')];
+
+  Locale _locale = const Locale('en');
+  Locale get locale => _locale;
+  AppLanguage get language => AppLanguage.byCode(_locale.languageCode);
+
+  Future<void> restore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(_key);
+    if (code != null && supportedLocales.any((l) => l.languageCode == code)) {
+      _locale = Locale(code);
+      api.language = code;
+      notifyListeners();
+    }
+  }
+
+  Future<void> set(String code) async {
+    if (!supportedLocales.any((l) => l.languageCode == code)) return;
+    _locale = Locale(code);
+    api.language = code;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, code);
+  }
+}
+
+/// Interface strings in English, Telugu, Hindi, Tamil and Kannada.
+///
+/// A plain map rather than ARB files, as in the devotee app, so a string is
+/// added in one place. `{n}` and `{name}` are filled by [S.call]'s args.
+/// Temple content (names, sevas, events) is the temple's own and is shown
+/// as entered.
+class S {
+  const S(this.code);
+
+  final String code;
+
+  static S of(BuildContext context) => S(Localizations.localeOf(context).languageCode);
+
+  String call(String key, [Map<String, Object?> args = const {}]) {
+    var s = _table[key]?[code] ?? _table[key]?['en'] ?? key;
+    for (final e in args.entries) {
+      s = s.replaceAll('{${e.key}}', '${e.value}');
+    }
+    return s;
+  }
+
+  /// "3 people" / "1 person", in the current language.
+  String people(int n) => n == 1 ? call('one_person') : call('n_people', {'n': n});
+
+  static const Map<String, Map<String, String>> _table = {
+    // Common
+    'greeting': {'en': 'Namaskaram', 'te': 'నమస్కారం', 'hi': 'नमस्कार', 'ta': 'வணக்கம்', 'kn': 'ನಮಸ್ಕಾರ'},
+    'today': {'en': 'Today', 'te': 'ఈ రోజు', 'hi': 'आज', 'ta': 'இன்று', 'kn': 'ಇಂದು'},
+    'this_month': {'en': 'This month', 'te': 'ఈ నెల', 'hi': 'इस महीने', 'ta': 'இந்த மாதம்', 'kn': 'ಈ ತಿಂಗಳು'},
+    'this_year': {'en': 'This year', 'te': 'ఈ సంవత్సరం', 'hi': 'इस साल', 'ta': 'இந்த ஆண்டு', 'kn': 'ಈ ವರ್ಷ'},
+    'all_time': {'en': 'All time', 'te': 'మొత్తం కాలం', 'hi': 'अब तक', 'ta': 'இதுவரை', 'kn': 'ಇದುವರೆಗೆ'},
+    'bookings': {'en': 'Bookings', 'te': 'బుకింగ్‌లు', 'hi': 'बुकिंग', 'ta': 'முன்பதிவுகள்', 'kn': 'ಬುಕಿಂಗ್‌ಗಳು'},
+    'n_bookings': {'en': '{n} bookings', 'te': '{n} బుకింగ్‌లు', 'hi': '{n} बुकिंग', 'ta': '{n} முன்பதிவுகள்', 'kn': '{n} ಬುಕಿಂಗ್‌ಗಳು'},
+    'n_people': {'en': '{n} people', 'te': '{n} మంది', 'hi': '{n} लोग', 'ta': '{n} பேர்', 'kn': '{n} ಜನರು'},
+    'one_person': {'en': '1 person', 'te': '1 వ్యక్తి', 'hi': '1 व्यक्ति', 'ta': '1 நபர்', 'kn': '1 ವ್ಯಕ್ತಿ'},
+    'people': {'en': 'People', 'te': 'మంది', 'hi': 'लोग', 'ta': 'நபர்கள்', 'kn': 'ಜನರು'},
+    'received': {'en': 'Received', 'te': 'స్వీకరించారు', 'hi': 'प्राप्त', 'ta': 'பெறப்பட்டது', 'kn': 'ಸ್ವೀಕರಿಸಲಾಗಿದೆ'},
+    'amount_paid': {'en': 'Amount paid', 'te': 'చెల్లించిన మొత్తం', 'hi': 'भुगतान राशि', 'ta': 'செலுத்திய தொகை', 'kn': 'ಪಾವತಿಸಿದ ಮೊತ್ತ'},
+    'in_all': {'en': 'In all', 'te': 'మొత్తం', 'hi': 'कुल', 'ta': 'மொத்தம்', 'kn': 'ಒಟ್ಟು'},
+    'see_all': {'en': 'See all', 'te': 'అన్నీ చూడండి', 'hi': 'सभी देखें', 'ta': 'அனைத்தையும் காண', 'kn': 'ಎಲ್ಲವನ್ನೂ ನೋಡಿ'},
+    'open': {'en': 'Open', 'te': 'తెరవండి', 'hi': 'खोलें', 'ta': 'திற', 'kn': 'ತೆರೆಯಿರಿ'},
+    'cancel': {'en': 'Cancel', 'te': 'రద్దు', 'hi': 'रद्द करें', 'ta': 'ரத்து', 'kn': 'ರದ್ದುಮಾಡಿ'},
+    'save': {'en': 'Save', 'te': 'సేవ్ చేయండి', 'hi': 'सहेजें', 'ta': 'சேமி', 'kn': 'ಉಳಿಸಿ'},
+    'saving': {'en': 'Saving…', 'te': 'సేవ్ అవుతోంది…', 'hi': 'सहेजा जा रहा है…', 'ta': 'சேமிக்கிறது…', 'kn': 'ಉಳಿಸಲಾಗುತ್ತಿದೆ…'},
+    'saved': {'en': 'Saved.', 'te': 'సేవ్ అయింది.', 'hi': 'सहेज लिया गया।', 'ta': 'சேமிக்கப்பட்டது.', 'kn': 'ಉಳಿಸಲಾಗಿದೆ.'},
+    'try_again': {'en': 'Try again', 'te': 'మళ్ళీ ప్రయత్నించండి', 'hi': 'फिर से कोशिश करें', 'ta': 'மீண்டும் முயற்சி', 'kn': 'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ'},
+    'none': {'en': 'None', 'te': 'ఏమీ లేవు', 'hi': 'कोई नहीं', 'ta': 'எதுவுமில்லை', 'kn': 'ಯಾವುದೂ ಇಲ್ಲ'},
+    'reason': {'en': 'Reason', 'te': 'కారణం', 'hi': 'कारण', 'ta': 'காரணம்', 'kn': 'ಕಾರಣ'},
+    'language': {'en': 'Language', 'te': 'భాష', 'hi': 'भाषा', 'ta': 'மொழி', 'kn': 'ಭಾಷೆ'},
+    'choose_language': {'en': 'Choose your language', 'te': 'మీ భాషను ఎంచుకోండి', 'hi': 'अपनी भाषा चुनें', 'ta': 'உங்கள் மொழியைத் தேர்ந்தெடுங்கள்', 'kn': 'ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆರಿಸಿ'},
+    'language_note': {
+      'en': 'The app shows in this language. Temple names, sevas and events stay as the temple entered them.',
+      'te': 'యాప్ ఈ భాషలో కనిపిస్తుంది. ఆలయ పేర్లు, సేవలు, కార్యక్రమాలు ఆలయం నమోదు చేసినట్లే ఉంటాయి.',
+      'hi': 'ऐप इस भाषा में दिखेगा। मंदिर के नाम, सेवाएँ और कार्यक्रम वैसे ही रहेंगे जैसे मंदिर ने दर्ज किए हैं।',
+      'ta': 'செயலி இந்த மொழியில் காட்டப்படும். கோயில் பெயர்கள், சேவைகள், நிகழ்ச்சிகள் கோயில் பதிவு செய்தபடியே இருக்கும்.',
+      'kn': 'ಆ್ಯಪ್ ಈ ಭಾಷೆಯಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ. ದೇವಾಲಯದ ಹೆಸರುಗಳು, ಸೇವೆಗಳು ಮತ್ತು ಕಾರ್ಯಕ್ರಮಗಳು ದೇವಾಲಯ ನಮೂದಿಸಿದಂತೆಯೇ ಇರುತ್ತವೆ.',
+    },
+    'account': {'en': 'Account', 'te': 'ఖాతా', 'hi': 'खाता', 'ta': 'கணக்கு', 'kn': 'ಖಾತೆ'},
+    'temples': {'en': 'Temples', 'te': 'ఆలయాలు', 'hi': 'मंदिर', 'ta': 'கோயில்கள்', 'kn': 'ದೇವಾಲಯಗಳು'},
+    'sevas': {'en': 'Sevas', 'te': 'సేవలు', 'hi': 'सेवाएँ', 'ta': 'சேவைகள்', 'kn': 'ಸೇವೆಗಳು'},
+    'event_tickets': {'en': 'Event tickets', 'te': 'కార్యక్రమ టికెట్లు', 'hi': 'कार्यक्रम टिकट', 'ta': 'நிகழ்ச்சி டிக்கெட்டுகள்', 'kn': 'ಕಾರ್ಯಕ್ರಮ ಟಿಕೆಟ್‌ಗಳು'},
+    'online_hundi': {'en': 'Online hundi', 'te': 'ఆన్‌లైన్ హుండీ', 'hi': 'ऑनलाइन हुंडी', 'ta': 'ஆன்லைன் உண்டியல்', 'kn': 'ಆನ್‌ಲೈನ್ ಹುಂಡಿ'},
+    'n_gifts': {'en': '{n} gifts', 'te': '{n} కానుకలు', 'hi': '{n} भेंट', 'ta': '{n} காணிக்கைகள்', 'kn': '{n} ಕಾಣಿಕೆಗಳು'},
+    'n_tickets': {'en': '{n} tickets', 'te': '{n} టికెట్లు', 'hi': '{n} टिकट', 'ta': '{n} டிக்கெட்டுகள்', 'kn': '{n} ಟಿಕೆಟ್‌ಗಳು'},
+
+    // Home
+    'your_temples': {'en': 'Your temples', 'te': 'మీ ఆలయాలు', 'hi': 'आपके मंदिर', 'ta': 'உங்கள் கோயில்கள்', 'kn': 'ನಿಮ್ಮ ದೇವಾಲಯಗಳು'},
+    'home_subtitle': {
+      'en': 'Everything your temple needs, in one place.',
+      'te': 'మీ ఆలయానికి కావలసినవన్నీ ఒకే చోట.',
+      'hi': 'आपके मंदिर की हर ज़रूरत, एक ही जगह।',
+      'ta': 'உங்கள் கோயிலுக்கு தேவையான அனைத்தும் ஒரே இடத்தில்.',
+      'kn': 'ನಿಮ್ಮ ದೇವಾಲಯಕ್ಕೆ ಬೇಕಾದ ಎಲ್ಲವೂ ಒಂದೇ ಕಡೆ.',
+    },
+    'scan_at_counter': {'en': 'Scan at counter', 'te': 'కౌంటర్‌లో స్కాన్', 'hi': 'काउंटर पर स्कैन', 'ta': 'கவுண்டரில் ஸ்கேன்', 'kn': 'ಕೌಂಟರ್‌ನಲ್ಲಿ ಸ್ಕ್ಯಾನ್'},
+    'scan': {'en': 'Scan', 'te': 'స్కాన్', 'hi': 'स्कैन', 'ta': 'ஸ்கேன்', 'kn': 'ಸ್ಕ್ಯಾನ್'},
+    'scan_hint': {
+      'en': 'Seva bookings, event tickets and passport stamps',
+      'te': 'సేవ బుకింగ్‌లు, కార్యక్రమ టికెట్లు, పాస్‌పోర్ట్ ముద్రలు',
+      'hi': 'सेवा बुकिंग, कार्यक्रम टिकट और पासपोर्ट मुहर',
+      'ta': 'சேவை முன்பதிவுகள், நிகழ்ச்சி டிக்கெட்டுகள், பாஸ்போர்ட் முத்திரைகள்',
+      'kn': 'ಸೇವಾ ಬುಕಿಂಗ್‌ಗಳು, ಕಾರ್ಯಕ್ರಮ ಟಿಕೆಟ್‌ಗಳು ಮತ್ತು ಪಾಸ್‌ಪೋರ್ಟ್ ಮುದ್ರೆಗಳು',
+    },
+    'find_booking': {'en': 'Find a booking', 'te': 'బుకింగ్ వెతకండి', 'hi': 'बुकिंग खोजें', 'ta': 'முன்பதிவைத் தேடு', 'kn': 'ಬುಕಿಂಗ್ ಹುಡುಕಿ'},
+    'find_booking_hint': {
+      'en': 'By mobile number, reference or name',
+      'te': 'మొబైల్ నంబర్, రిఫరెన్స్ లేదా పేరుతో',
+      'hi': 'मोबाइल नंबर, संदर्भ या नाम से',
+      'ta': 'மொபைல் எண், குறிப்பு அல்லது பெயர் மூலம்',
+      'kn': 'ಮೊಬೈಲ್ ಸಂಖ್ಯೆ, ಉಲ್ಲೇಖ ಅಥವಾ ಹೆಸರಿನಿಂದ',
+    },
+    'quick_actions': {'en': 'Quick actions', 'te': 'త్వరిత చర్యలు', 'hi': 'त्वरित कार्य', 'ta': 'விரைவு செயல்கள்', 'kn': 'ತ್ವರಿತ ಕ್ರಿಯೆಗಳು'},
+    'todays_sevas': {'en': "Today's sevas", 'te': 'ఈ రోజు సేవలు', 'hi': 'आज की सेवाएँ', 'ta': 'இன்றைய சேவைகள்', 'kn': 'ಇಂದಿನ ಸೇವೆಗಳು'},
+    'requests_to_manage': {'en': 'Requests to manage a temple', 'te': 'ఆలయ నిర్వహణ అభ్యర్థనలు', 'hi': 'मंदिर प्रबंधन के अनुरोध', 'ta': 'கோயிலை நிர்வகிக்கும் கோரிக்கைகள்', 'kn': 'ದೇವಾಲಯ ನಿರ್ವಹಣೆಯ ವಿನಂತಿಗಳು'},
+    'temples_registered': {'en': 'Temples you registered', 'te': 'మీరు నమోదు చేసిన ఆలయాలు', 'hi': 'आपके द्वारा पंजीकृत मंदिर', 'ta': 'நீங்கள் பதிவு செய்த கோயில்கள்', 'kn': 'ನೀವು ನೋಂದಾಯಿಸಿದ ದೇವಾಲಯಗಳು'},
+    'another_temple': {'en': 'Another temple?', 'te': 'మరో ఆలయమా?', 'hi': 'एक और मंदिर?', 'ta': 'மற்றொரு கோயிலா?', 'kn': 'ಇನ್ನೊಂದು ದೇವಾಲಯವೇ?'},
+    'find_my_temple': {'en': 'Find my temple', 'te': 'నా ఆలయాన్ని వెతకండి', 'hi': 'मेरा मंदिर खोजें', 'ta': 'என் கோயிலைத் தேடு', 'kn': 'ನನ್ನ ದೇವಾಲಯ ಹುಡುಕಿ'},
+    'register_missing': {'en': 'Register a missing temple', 'te': 'లేని ఆలయాన్ని నమోదు చేయండి', 'hi': 'छूटा हुआ मंदिर पंजीकृत करें', 'ta': 'இல்லாத கோயிலைப் பதிவு செய்', 'kn': 'ಇಲ್ಲದ ದೇವಾಲಯ ನೋಂದಾಯಿಸಿ'},
+    'connect_temple': {'en': 'Connect your temple', 'te': 'మీ ఆలయాన్ని అనుసంధానించండి', 'hi': 'अपना मंदिर जोड़ें', 'ta': 'உங்கள் கோயிலை இணைக்கவும்', 'kn': 'ನಿಮ್ಮ ದೇವಾಲಯವನ್ನು ಸೇರಿಸಿ'},
+    'connect_temple_body': {
+      'en': 'If your temple is already on the app, find it and ask to manage it. If it is missing, register it with a few photos. Our team confirms each request — usually by calling the number on your account — and your temple appears here once approved.',
+      'te': 'మీ ఆలయం ఇప్పటికే యాప్‌లో ఉంటే, దాన్ని వెతికి నిర్వహించడానికి అభ్యర్థించండి. లేకపోతే కొన్ని ఫోటోలతో నమోదు చేయండి. మా బృందం ప్రతి అభ్యర్థనను — సాధారణంగా మీ ఖాతాలోని నంబర్‌కు కాల్ చేసి — నిర్ధారిస్తుంది; ఆమోదం తర్వాత మీ ఆలయం ఇక్కడ కనిపిస్తుంది.',
+      'hi': 'अगर आपका मंदिर ऐप पर है, तो उसे खोजें और प्रबंधन का अनुरोध करें। अगर नहीं है, तो कुछ फ़ोटो के साथ पंजीकृत करें। हमारी टीम हर अनुरोध की पुष्टि करती है — आमतौर पर आपके खाते के नंबर पर कॉल करके — और स्वीकृति के बाद मंदिर यहाँ दिखता है।',
+      'ta': 'உங்கள் கோயில் ஏற்கனவே செயலியில் இருந்தால், அதைத் தேடி நிர்வகிக்கக் கோருங்கள். இல்லையெனில் சில புகைப்படங்களுடன் பதிவு செய்யுங்கள். எங்கள் குழு ஒவ்வொரு கோரிக்கையையும் — பொதுவாக உங்கள் கணக்கில் உள்ள எண்ணை அழைத்து — உறுதிப்படுத்தும்; ஒப்புதலுக்குப் பிறகு கோயில் இங்கே தோன்றும்.',
+      'kn': 'ನಿಮ್ಮ ದೇವಾಲಯ ಈಗಾಗಲೇ ಆ್ಯಪ್‌ನಲ್ಲಿದ್ದರೆ, ಅದನ್ನು ಹುಡುಕಿ ನಿರ್ವಹಿಸಲು ವಿನಂತಿಸಿ. ಇಲ್ಲದಿದ್ದರೆ ಕೆಲವು ಫೋಟೋಗಳೊಂದಿಗೆ ನೋಂದಾಯಿಸಿ. ನಮ್ಮ ತಂಡ ಪ್ರತಿ ವಿನಂತಿಯನ್ನು — ಸಾಮಾನ್ಯವಾಗಿ ನಿಮ್ಮ ಖಾತೆಯ ಸಂಖ್ಯೆಗೆ ಕರೆ ಮಾಡಿ — ಖಚಿತಪಡಿಸುತ್ತದೆ; ಅನುಮೋದನೆಯ ನಂತರ ದೇವಾಲಯ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.',
+    },
+    'waiting_confirmation': {'en': 'Waiting for confirmation', 'te': 'నిర్ధారణ కోసం వేచి ఉంది', 'hi': 'पुष्टि की प्रतीक्षा', 'ta': 'உறுதிப்படுத்தலுக்காக காத்திருக்கிறது', 'kn': 'ದೃಢೀಕರಣಕ್ಕಾಗಿ ಕಾಯುತ್ತಿದೆ'},
+    'not_approved': {'en': 'Not approved', 'te': 'ఆమోదించలేదు', 'hi': 'स्वीकृत नहीं', 'ta': 'ஒப்புதல் இல்லை', 'kn': 'ಅನುಮೋದಿಸಿಲ್ಲ'},
+    'withdraw': {'en': 'Withdraw', 'te': 'ఉపసంహరించండి', 'hi': 'वापस लें', 'ta': 'திரும்பப் பெறு', 'kn': 'ಹಿಂಪಡೆಯಿರಿ'},
+    'withdraw_q': {'en': 'Withdraw this request?', 'te': 'ఈ అభ్యర్థనను ఉపసంహరించాలా?', 'hi': 'यह अनुरोध वापस लें?', 'ta': 'இந்தக் கோரிக்கையைத் திரும்பப் பெறவா?', 'kn': 'ಈ ವಿನಂತಿಯನ್ನು ಹಿಂಪಡೆಯಬೇಕೆ?'},
+    'listed_access_pending': {'en': 'Listed — access is being confirmed', 'te': 'జాబితాలో ఉంది — యాక్సెస్ నిర్ధారణలో', 'hi': 'सूचीबद्ध — पहुँच की पुष्टि हो रही है', 'ta': 'பட்டியலில் உள்ளது — அணுகல் உறுதிப்படுத்தப்படுகிறது', 'kn': 'ಪಟ್ಟಿಯಲ್ಲಿದೆ — ಪ್ರವೇಶ ದೃಢೀಕರಿಸಲಾಗುತ್ತಿದೆ'},
+
+    // Dashboard
+    'at_a_glance': {'en': 'At a glance', 'te': 'ఒక్క చూపులో', 'hi': 'एक नज़र में', 'ta': 'ஒரு பார்வையில்', 'kn': 'ಒಂದು ನೋಟದಲ್ಲಿ'},
+    'manage': {'en': 'Manage', 'te': 'నిర్వహణ', 'hi': 'प्रबंधन', 'ta': 'நிர்வகி', 'kn': 'ನಿರ್ವಹಿಸಿ'},
+    'at_the_counter': {'en': 'At the counter', 'te': 'కౌంటర్ వద్ద', 'hi': 'काउंटर पर', 'ta': 'கவுண்டரில்', 'kn': 'ಕೌಂಟರ್‌ನಲ್ಲಿ'},
+    'paid_today_sevas': {'en': "Paid for today's sevas", 'te': 'ఈ రోజు సేవలకు చెల్లింపు', 'hi': 'आज की सेवाओं का भुगतान', 'ta': 'இன்றைய சேவைகளுக்கு செலுத்தியது', 'kn': 'ಇಂದಿನ ಸೇವೆಗಳಿಗೆ ಪಾವತಿ'},
+    'hundi_today': {'en': 'Hundi today', 'te': 'ఈ రోజు హుండీ', 'hi': 'आज की हुंडी', 'ta': 'இன்றைய உண்டியல்', 'kn': 'ಇಂದಿನ ಹುಂಡಿ'},
+    'hundi_off': {'en': 'Online hundi is off', 'te': 'ఆన్‌లైన్ హుండీ ఆఫ్‌లో ఉంది', 'hi': 'ऑनलाइन हुंडी बंद है', 'ta': 'ஆன்லைன் உண்டியல் முடக்கப்பட்டுள்ளது', 'kn': 'ಆನ್‌ಲೈನ್ ಹುಂಡಿ ಆಫ್ ಆಗಿದೆ'},
+    'opens_after_approval': {'en': 'Opens after payments are approved', 'te': 'చెల్లింపులు ఆమోదించాక తెరుచుకుంటుంది', 'hi': 'भुगतान स्वीकृत होने पर खुलेगा', 'ta': 'கட்டணங்கள் அங்கீகரிக்கப்பட்ட பின் திறக்கும்', 'kn': 'ಪಾವತಿಗಳು ಅನುಮೋದನೆಯಾದ ನಂತರ ತೆರೆಯುತ್ತದೆ'},
+    'financial_report': {'en': 'Financial report', 'te': 'ఆర్థిక నివేదిక', 'hi': 'वित्तीय रिपोर्ट', 'ta': 'நிதி அறிக்கை', 'kn': 'ಹಣಕಾಸು ವರದಿ'},
+    'full_report_hint': {'en': 'Day, month, year and all-time totals, payouts and your share', 'te': 'రోజు, నెల, సంవత్సరం, మొత్తం లెక్కలు, చెల్లింపులు, మీ వాటా', 'hi': 'दिन, महीना, साल और कुल योग, भुगतान और आपका हिस्सा', 'ta': 'நாள், மாதம், ஆண்டு, மொத்தத் தொகைகள், பணம் செலுத்தல்கள், உங்கள் பங்கு', 'kn': 'ದಿನ, ತಿಂಗಳು, ವರ್ಷ ಮತ್ತು ಒಟ್ಟು ಮೊತ್ತಗಳು, ಪಾವತಿಗಳು ಮತ್ತು ನಿಮ್ಮ ಪಾಲು'},
+    'bookings_today': {'en': 'Bookings today', 'te': 'ఈ రోజు బుకింగ్‌లు', 'hi': 'आज की बुकिंग', 'ta': 'இன்றைய முன்பதிவுகள்', 'kn': 'ಇಂದಿನ ಬುಕಿಂಗ್‌ಗಳು'},
+    'upcoming': {'en': 'Upcoming', 'te': 'రాబోయేవి', 'hi': 'आगामी', 'ta': 'வரவிருப்பவை', 'kn': 'ಮುಂಬರುವ'},
+    'events_ahead': {'en': 'Events ahead', 'te': 'రాబోయే కార్యక్రమాలు', 'hi': 'आगामी कार्यक्रम', 'ta': 'வரும் நிகழ்ச்சிகள்', 'kn': 'ಮುಂಬರುವ ಕಾರ್ಯಕ್ರಮಗಳು'},
+    'in_review': {'en': 'In review', 'te': 'సమీక్షలో', 'hi': 'समीक्षा में', 'ta': 'ஆய்வில்', 'kn': 'ಪರಿಶೀಲನೆಯಲ್ಲಿ'},
+    'to_answer': {'en': 'To answer', 'te': 'సమాధానం ఇవ్వాలి', 'hi': 'जवाब देना है', 'ta': 'பதிலளிக்க', 'kn': 'ಉತ್ತರಿಸಬೇಕು'},
+    'followers': {'en': 'Followers', 'te': 'అనుచరులు', 'hi': 'अनुयायी', 'ta': 'பின்தொடர்பவர்கள்', 'kn': 'ಅನುಯಾಯಿಗಳು'},
+    'likes': {'en': 'Likes', 'te': 'ఇష్టాలు', 'hi': 'पसंद', 'ta': 'விருப்பங்கள்', 'kn': 'ಇಷ್ಟಗಳು'},
+    'check_ins': {'en': 'Check-ins', 'te': 'చెక్-ఇన్‌లు', 'hi': 'चेक-इन', 'ta': 'வருகைகள்', 'kn': 'ಚೆಕ್-ಇನ್‌ಗಳು'},
+    'add_cover': {'en': 'Add cover photo', 'te': 'కవర్ ఫోటో జోడించండి', 'hi': 'कवर फ़ोटो जोड़ें', 'ta': 'அட்டைப் படம் சேர்', 'kn': 'ಕವರ್ ಫೋಟೋ ಸೇರಿಸಿ'},
+    'change_cover': {'en': 'Change cover', 'te': 'కవర్ మార్చండి', 'hi': 'कवर बदलें', 'ta': 'அட்டையை மாற்று', 'kn': 'ಕವರ್ ಬದಲಿಸಿ'},
+    'uploading': {'en': 'Uploading…', 'te': 'అప్‌లోడ్ అవుతోంది…', 'hi': 'अपलोड हो रहा है…', 'ta': 'பதிவேற்றுகிறது…', 'kn': 'ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ…'},
+    'not_visible_yet': {
+      'en': 'Not yet visible to devotees. Fill in timings, sevas and photos; the editors publish it once reviewed.',
+      'te': 'భక్తులకు ఇంకా కనిపించదు. సమయాలు, సేవలు, ఫోటోలు నింపండి; సమీక్ష తర్వాత ఎడిటర్లు ప్రచురిస్తారు.',
+      'hi': 'अभी भक्तों को दिखाई नहीं देता। समय, सेवाएँ और फ़ोटो भरें; समीक्षा के बाद संपादक इसे प्रकाशित करेंगे।',
+      'ta': 'பக்தர்களுக்கு இன்னும் தெரியாது. நேரங்கள், சேவைகள், புகைப்படங்களை நிரப்புங்கள்; ஆய்வுக்குப் பிறகு ஆசிரியர்கள் வெளியிடுவார்கள்.',
+      'kn': 'ಭಕ್ತರಿಗೆ ಇನ್ನೂ ಕಾಣಿಸುವುದಿಲ್ಲ. ಸಮಯ, ಸೇವೆಗಳು ಮತ್ತು ಫೋಟೋಗಳನ್ನು ತುಂಬಿ; ಪರಿಶೀಲನೆಯ ನಂತರ ಸಂಪಾದಕರು ಪ್ರಕಟಿಸುತ್ತಾರೆ.',
+    },
+    'payments_setup': {'en': 'Take money in the app', 'te': 'యాప్‌లో డబ్బు స్వీకరించండి', 'hi': 'ऐप में भुगतान लें', 'ta': 'செயலியில் பணம் பெறுங்கள்', 'kn': 'ಆ್ಯಪ್‌ನಲ್ಲಿ ಹಣ ಸ್ವೀಕರಿಸಿ'},
+    'payments_setup_body': {
+      'en': 'For paid sevas, paid tickets or the online hundi: add the bank account, Aadhaar, temple proof and your photo.',
+      'te': 'చెల్లింపు సేవలు, టికెట్లు లేదా ఆన్‌లైన్ హుండీ కోసం: బ్యాంక్ ఖాతా, ఆధార్, ఆలయ రుజువు, మీ ఫోటో జోడించండి.',
+      'hi': 'सशुल्क सेवाओं, टिकट या ऑनलाइन हुंडी के लिए: बैंक खाता, आधार, मंदिर का प्रमाण और अपनी फ़ोटो जोड़ें।',
+      'ta': 'கட்டண சேவைகள், டிக்கெட்டுகள் அல்லது ஆன்லைன் உண்டியலுக்கு: வங்கிக் கணக்கு, ஆதார், கோயில் ஆதாரம், உங்கள் புகைப்படம் சேர்க்கவும்.',
+      'kn': 'ಪಾವತಿ ಸೇವೆಗಳು, ಟಿಕೆಟ್‌ಗಳು ಅಥವಾ ಆನ್‌ಲೈನ್ ಹುಂಡಿಗಾಗಿ: ಬ್ಯಾಂಕ್ ಖಾತೆ, ಆಧಾರ್, ದೇವಾಲಯದ ಪುರಾವೆ ಮತ್ತು ನಿಮ್ಮ ಫೋಟೋ ಸೇರಿಸಿ.',
+    },
+    'payments_checking': {'en': 'Payments: being checked', 'te': 'చెల్లింపులు: పరిశీలనలో', 'hi': 'भुगतान: जाँच हो रही है', 'ta': 'கட்டணங்கள்: சரிபார்க்கப்படுகிறது', 'kn': 'ಪಾವತಿಗಳು: ಪರಿಶೀಲನೆಯಲ್ಲಿ'},
+    'payments_checking_body': {
+      'en': 'Paid sevas, tickets and the hundi open once our team approves your details.',
+      'te': 'మా బృందం మీ వివరాలను ఆమోదించాక చెల్లింపు సేవలు, టికెట్లు, హుండీ తెరుచుకుంటాయి.',
+      'hi': 'टीम द्वारा विवरण स्वीकृत होते ही सशुल्क सेवाएँ, टिकट और हुंडी खुल जाएँगे।',
+      'ta': 'எங்கள் குழு உங்கள் விவரங்களை அங்கீகரித்ததும் கட்டண சேவைகள், டிக்கெட்டுகள், உண்டியல் திறக்கும்.',
+      'kn': 'ನಮ್ಮ ತಂಡ ನಿಮ್ಮ ವಿವರಗಳನ್ನು ಅನುಮೋದಿಸಿದ ನಂತರ ಪಾವತಿ ಸೇವೆಗಳು, ಟಿಕೆಟ್‌ಗಳು ಮತ್ತು ಹುಂಡಿ ತೆರೆಯುತ್ತವೆ.',
+    },
+    'temple_details': {'en': 'Temple details', 'te': 'ఆలయ వివరాలు', 'hi': 'मंदिर विवरण', 'ta': 'கோயில் விவரங்கள்', 'kn': 'ದೇವಾಲಯದ ವಿವರಗಳು'},
+    'temple_details_hint': {'en': 'Contact, location, visitor rules', 'te': 'సంప్రదింపు, స్థానం, సందర్శక నియమాలు', 'hi': 'संपर्क, स्थान, आगंतुक नियम', 'ta': 'தொடர்பு, இடம், பார்வையாளர் விதிகள்', 'kn': 'ಸಂಪರ್ಕ, ಸ್ಥಳ, ಸಂದರ್ಶಕ ನಿಯಮಗಳು'},
+    'darshan_timings': {'en': 'Darshan timings', 'te': 'దర్శన సమయాలు', 'hi': 'दर्शन समय', 'ta': 'தரிசன நேரங்கள்', 'kn': 'ದರ್ಶನ ಸಮಯ'},
+    'timings_hint': {'en': 'Daily and weekday timings', 'te': 'రోజువారీ, వారపు సమయాలు', 'hi': 'दैनिक और साप्ताहिक समय', 'ta': 'தினசரி மற்றும் வார நாள் நேரங்கள்', 'kn': 'ದೈನಂದಿನ ಮತ್ತು ವಾರದ ಸಮಯ'},
+    'closures': {'en': 'Closures', 'te': 'మూసివేతలు', 'hi': 'बंद दिन', 'ta': 'மூடல்கள்', 'kn': 'ಮುಚ್ಚುವ ದಿನಗಳು'},
+    'closures_hint': {'en': 'Eclipses, renovations, special days', 'te': 'గ్రహణాలు, మరమ్మతులు, ప్రత్యేక రోజులు', 'hi': 'ग्रहण, मरम्मत, विशेष दिन', 'ta': 'கிரகணங்கள், புனரமைப்பு, சிறப்பு நாட்கள்', 'kn': 'ಗ್ರಹಣಗಳು, ನವೀಕರಣ, ವಿಶೇಷ ದಿನಗಳು'},
+    'events': {'en': 'Events & festivals', 'te': 'కార్యక్రమాలు & పండుగలు', 'hi': 'कार्यक्रम और त्योहार', 'ta': 'நிகழ்ச்சிகள் & திருவிழாக்கள்', 'kn': 'ಕಾರ್ಯಕ್ರಮಗಳು ಮತ್ತು ಹಬ್ಬಗಳು'},
+    'events_hint': {'en': 'Festivals, bhajans, programs; tickets and who is coming', 'te': 'పండుగలు, భజనలు, కార్యక్రమాలు; టికెట్లు, ఎవరు వస్తున్నారు', 'hi': 'त्योहार, भजन, कार्यक्रम; टिकट और कौन आ रहा है', 'ta': 'திருவிழாக்கள், பஜனைகள், நிகழ்ச்சிகள்; டிக்கெட்டுகள், யார் வருகிறார்கள்', 'kn': 'ಹಬ್ಬಗಳು, ಭಜನೆಗಳು, ಕಾರ್ಯಕ್ರಮಗಳು; ಟಿಕೆಟ್‌ಗಳು ಮತ್ತು ಯಾರು ಬರುತ್ತಿದ್ದಾರೆ'},
+    'pujas_sevas': {'en': 'Pujas & sevas', 'te': 'పూజలు & సేవలు', 'hi': 'पूजा और सेवाएँ', 'ta': 'பூஜைகள் & சேவைகள்', 'kn': 'ಪೂಜೆಗಳು ಮತ್ತು ಸೇವೆಗಳು'},
+    'sevas_hint': {'en': '{n} listed · fees and app booking', 'te': '{n} జాబితాలో · రుసుములు, యాప్ బుకింగ్', 'hi': '{n} सूचीबद्ध · शुल्क और ऐप बुकिंग', 'ta': '{n} பட்டியலில் · கட்டணங்கள், செயலி முன்பதிவு', 'kn': '{n} ಪಟ್ಟಿಯಲ್ಲಿ · ಶುಲ್ಕ ಮತ್ತು ಆ್ಯಪ್ ಬುಕಿಂಗ್'},
+    'photos': {'en': 'Photos', 'te': 'ఫోటోలు', 'hi': 'फ़ोटो', 'ta': 'புகைப்படங்கள்', 'kn': 'ಫೋಟೋಗಳು'},
+    'n_photos': {'en': '{n} photos', 'te': '{n} ఫోటోలు', 'hi': '{n} फ़ोटो', 'ta': '{n} புகைப்படங்கள்', 'kn': '{n} ಫೋಟೋಗಳು'},
+    'seva_bookings': {'en': 'Seva bookings', 'te': 'సేవ బుకింగ్‌లు', 'hi': 'सेवा बुकिंग', 'ta': 'சேவை முன்பதிவுகள்', 'kn': 'ಸೇವಾ ಬುಕಿಂಗ್‌ಗಳು'},
+    'seva_bookings_hint': {'en': 'Who is coming, by day', 'te': 'రోజువారీగా ఎవరు వస్తున్నారు', 'hi': 'दिन के अनुसार कौन आ रहा है', 'ta': 'நாள் வாரியாக யார் வருகிறார்கள்', 'kn': 'ದಿನದ ಪ್ರಕಾರ ಯಾರು ಬರುತ್ತಿದ್ದಾರೆ'},
+    'finance': {'en': 'Finance', 'te': 'ఆర్థికం', 'hi': 'वित्त', 'ta': 'நிதி', 'kn': 'ಹಣಕಾಸು'},
+    'finance_hint': {'en': 'Amounts by day, payouts, payout account', 'te': 'రోజువారీ మొత్తాలు, చెల్లింపులు, చెల్లింపు ఖాతా', 'hi': 'दिन के अनुसार राशि, भुगतान, भुगतान खाता', 'ta': 'நாள் வாரியான தொகைகள், பணம் செலுத்தல்கள், கணக்கு', 'kn': 'ದಿನದ ಮೊತ್ತಗಳು, ಪಾವತಿಗಳು, ಪಾವತಿ ಖಾತೆ'},
+    'hundi_hint': {'en': 'Gifts from devotees in the app', 'te': 'యాప్‌లో భక్తుల కానుకలు', 'hi': 'ऐप में भक्तों की भेंट', 'ta': 'செயலியில் பக்தர்களின் காணிக்கைகள்', 'kn': 'ಆ್ಯಪ್‌ನಲ್ಲಿ ಭಕ್ತರ ಕಾಣಿಕೆಗಳು'},
+    'reviews': {'en': 'Devotee reviews', 'te': 'భక్తుల సమీక్షలు', 'hi': 'भक्तों की समीक्षाएँ', 'ta': 'பக்தர்களின் விமர்சனங்கள்', 'kn': 'ಭಕ್ತರ ವಿಮರ್ಶೆಗಳು'},
+    'reviews_hint': {'en': 'Read and reply', 'te': 'చదివి సమాధానం ఇవ్వండి', 'hi': 'पढ़ें और जवाब दें', 'ta': 'படித்து பதிலளிக்கவும்', 'kn': 'ಓದಿ ಉತ್ತರಿಸಿ'},
+    'temple_qr': {'en': 'Temple QR code', 'te': 'ఆలయ QR కోడ్', 'hi': 'मंदिर QR कोड', 'ta': 'கோயில் QR குறியீடு', 'kn': 'ದೇವಾಲಯ QR ಕೋಡ್'},
+    'temple_qr_hint': {'en': 'Check-in code for the gate; print the poster', 'te': 'గేటు వద్ద చెక్-ఇన్ కోడ్; పోస్టర్ ప్రింట్ చేయండి', 'hi': 'गेट के लिए चेक-इन कोड; पोस्टर प्रिंट करें', 'ta': 'வாயிலுக்கான வருகை குறியீடு; சுவரொட்டியை அச்சிடுங்கள்', 'kn': 'ಗೇಟ್‌ಗೆ ಚೆಕ್-ಇನ್ ಕೋಡ್; ಪೋಸ್ಟರ್ ಮುದ್ರಿಸಿ'},
+    'find_booking_long': {'en': 'Devotee without a phone: by mobile number, reference or name', 'te': 'ఫోన్ లేని భక్తుడు: మొబైల్ నంబర్, రిఫరెన్స్ లేదా పేరుతో', 'hi': 'बिना फ़ोन वाला भक्त: मोबाइल नंबर, संदर्भ या नाम से', 'ta': 'தொலைபேசி இல்லாத பக்தர்: மொபைல் எண், குறிப்பு அல்லது பெயர் மூலம்', 'kn': 'ಫೋನ್ ಇಲ್ಲದ ಭಕ್ತ: ಮೊಬೈಲ್ ಸಂಖ್ಯೆ, ಉಲ್ಲೇಖ ಅಥವಾ ಹೆಸರಿನಿಂದ'},
+
+    // Finance
+    'day': {'en': 'Day', 'te': 'రోజు', 'hi': 'दिन', 'ta': 'நாள்', 'kn': 'ದಿನ'},
+    'paid_bookings': {'en': 'Paid bookings', 'te': 'చెల్లించిన బుకింగ్‌లు', 'hi': 'भुगतान की गई बुकिंग', 'ta': 'செலுத்திய முன்பதிவுகள்', 'kn': 'ಪಾವತಿಸಿದ ಬುಕಿಂಗ್‌ಗಳು'},
+    'booked': {'en': 'Booked', 'te': 'బుక్ అయ్యాయి', 'hi': 'बुक', 'ta': 'முன்பதிவு', 'kn': 'ಬುಕ್ ಆಗಿದೆ'},
+    'still_to_come': {'en': 'Still to come', 'te': 'ఇంకా రావాల్సినవి', 'hi': 'अभी आने हैं', 'ta': 'இன்னும் வர வேண்டியவை', 'kn': 'ಇನ್ನೂ ಬರಬೇಕಾದವು'},
+    'scanned_at_counter': {'en': 'scanned at the counter', 'te': 'కౌంటర్‌లో స్కాన్ అయ్యాయి', 'hi': 'काउंटर पर स्कैन', 'ta': 'கவுண்டரில் ஸ்கேன் செய்யப்பட்டது', 'kn': 'ಕೌಂಟರ್‌ನಲ್ಲಿ ಸ್ಕ್ಯಾನ್ ಆಗಿದೆ'},
+    'see_who_booked': {'en': 'See who booked', 'te': 'ఎవరు బుక్ చేశారో చూడండి', 'hi': 'देखें किसने बुक किया', 'ta': 'யார் முன்பதிவு செய்தார்கள் என்று பார்', 'kn': 'ಯಾರು ಬುಕ್ ಮಾಡಿದ್ದಾರೆಂದು ನೋಡಿ'},
+    'not_paid_yet': {'en': '{n} not paid yet', 'te': '{n} ఇంకా చెల్లించలేదు', 'hi': '{n} का भुगतान बाकी', 'ta': '{n} இன்னும் செலுத்தவில்லை', 'kn': '{n} ಇನ್ನೂ ಪಾವತಿಸಿಲ್ಲ'},
+    'cancelled_refunded': {'en': '{n} cancelled or refunded', 'te': '{n} రద్దు లేదా వాపసు', 'hi': '{n} रद्द या वापस', 'ta': '{n} ரத்து அல்லது திருப்பிச் செலுத்தப்பட்டது', 'kn': '{n} ರದ್ದು ಅಥವಾ ಮರುಪಾವತಿ'},
+    'settlement': {'en': 'Settlement', 'te': 'సెటిల్‌మెంట్', 'hi': 'निपटान', 'ta': 'தீர்வு', 'kn': 'ಇತ್ಯರ್ಥ'},
+    'due_to_temple': {'en': 'Due to your temple', 'te': 'మీ ఆలయానికి రావాల్సినది', 'hi': 'आपके मंदिर को देय', 'ta': 'உங்கள் கோயிலுக்கு வர வேண்டியது', 'kn': 'ನಿಮ್ಮ ದೇವಾಲಯಕ್ಕೆ ಬರಬೇಕಾದದ್ದು'},
+    'being_paid': {'en': 'Being paid', 'te': 'చెల్లింపులో', 'hi': 'भुगतान हो रहा है', 'ta': 'செலுத்தப்படுகிறது', 'kn': 'ಪಾವತಿಯಾಗುತ್ತಿದೆ'},
+    'paid_to_date': {'en': 'Paid to date', 'te': 'ఇప్పటివరకు చెల్లించినది', 'hi': 'अब तक भुगतान', 'ta': 'இதுவரை செலுத்தியது', 'kn': 'ಇದುವರೆಗೆ ಪಾವತಿಸಿದ್ದು'},
+    'n_settlements': {'en': '{n} settlements', 'te': '{n} సెటిల్‌మెంట్లు', 'hi': '{n} निपटान', 'ta': '{n} தீர்வுகள்', 'kn': '{n} ಇತ್ಯರ್ಥಗಳು'},
+    'payouts': {'en': 'Payouts', 'te': 'చెల్లింపులు', 'hi': 'भुगतान', 'ta': 'பணம் செலுத்தல்கள்', 'kn': 'ಪಾವತಿಗಳು'},
+    'no_payouts': {'en': 'No payouts yet', 'te': 'ఇంకా చెల్లింపులు లేవు', 'hi': 'अभी कोई भुगतान नहीं', 'ta': 'இன்னும் பணம் செலுத்தல் இல்லை', 'kn': 'ಇನ್ನೂ ಪಾವತಿಗಳಿಲ್ಲ'},
+    'no_payouts_body': {'en': 'They appear here once the platform settles your paid bookings.', 'te': 'ప్లాట్‌ఫారం మీ చెల్లించిన బుకింగ్‌లను సెటిల్ చేశాక ఇక్కడ కనిపిస్తాయి.', 'hi': 'प्लेटफ़ॉर्म द्वारा भुगतान की गई बुकिंग निपटाने पर यहाँ दिखेंगे।', 'ta': 'தளம் உங்கள் செலுத்திய முன்பதிவுகளைத் தீர்த்ததும் இங்கே தோன்றும்.', 'kn': 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ನಿಮ್ಮ ಪಾವತಿಸಿದ ಬುಕಿಂಗ್‌ಗಳನ್ನು ಇತ್ಯರ್ಥಗೊಳಿಸಿದ ನಂತರ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.'},
+    'paid_to': {'en': 'Paid to', 'te': 'చెల్లింపు ఖాతా', 'hi': 'भुगतान खाता', 'ta': 'செலுத்தப்படும் கணக்கு', 'kn': 'ಪಾವತಿ ಖಾತೆ'},
+    'total_bookings': {'en': 'Total bookings', 'te': 'మొత్తం బుకింగ్‌లు', 'hi': 'कुल बुकिंग', 'ta': 'மொத்த முன்பதிவுகள்', 'kn': 'ಒಟ್ಟು ಬುಕಿಂಗ್‌ಗಳು'},
+    'total_collected': {'en': 'Total collected', 'te': 'మొత్తం వసూలు', 'hi': 'कुल संग्रह', 'ta': 'மொத்த வசூல்', 'kn': 'ಒಟ್ಟು ಸಂಗ್ರಹ'},
+    'platform_fee': {'en': 'Platform fee', 'te': 'ప్లాట్‌ఫారం రుసుము', 'hi': 'प्लेटफ़ॉर्म शुल्क', 'ta': 'தள கட்டணம்', 'kn': 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಶುಲ್ಕ'},
+    'your_share': {'en': 'Your share', 'te': 'మీ వాటా', 'hi': 'आपका हिस्सा', 'ta': 'உங்கள் பங்கு', 'kn': 'ನಿಮ್ಮ ಪಾಲು'},
+    'report_totals': {'en': 'Totals', 'te': 'మొత్తాలు', 'hi': 'कुल योग', 'ta': 'மொத்தங்கள்', 'kn': 'ಒಟ್ಟು ಮೊತ್ತಗಳು'},
+    'report_hint': {
+      'en': 'Everything devotees paid through the app, by period: sevas, event tickets and hundi gifts.',
+      'te': 'భక్తులు యాప్ ద్వారా చెల్లించినవన్నీ, కాలం వారీగా: సేవలు, కార్యక్రమ టికెట్లు, హుండీ కానుకలు.',
+      'hi': 'भक्तों ने ऐप से जो भी भुगतान किया, अवधि के अनुसार: सेवाएँ, कार्यक्रम टिकट और हुंडी भेंट।',
+      'ta': 'பக்தர்கள் செயலி மூலம் செலுத்திய அனைத்தும், காலம் வாரியாக: சேவைகள், நிகழ்ச்சி டிக்கெட்டுகள், உண்டியல் காணிக்கைகள்.',
+      'kn': 'ಭಕ್ತರು ಆ್ಯಪ್ ಮೂಲಕ ಪಾವತಿಸಿದ ಎಲ್ಲವೂ, ಅವಧಿಯ ಪ್ರಕಾರ: ಸೇವೆಗಳು, ಕಾರ್ಯಕ್ರಮ ಟಿಕೆಟ್‌ಗಳು ಮತ್ತು ಹುಂಡಿ ಕಾಣಿಕೆಗಳು.',
+    },
+    'taking_gifts': {'en': 'Taking gifts in the app', 'te': 'యాప్‌లో కానుకలు స్వీకరిస్తోంది', 'hi': 'ऐप में भेंट ली जा रही है', 'ta': 'செயலியில் காணிக்கைகள் பெறப்படுகின்றன', 'kn': 'ಆ್ಯಪ್‌ನಲ್ಲಿ ಕಾಣಿಕೆ ಸ್ವೀಕರಿಸಲಾಗುತ್ತಿದೆ'},
+    'not_taking_gifts': {'en': 'Not taking gifts in the app', 'te': 'యాప్‌లో కానుకలు స్వీకరించడం లేదు', 'hi': 'ऐप में भेंट नहीं ली जा रही', 'ta': 'செயலியில் காணிக்கைகள் பெறப்படவில்லை', 'kn': 'ಆ್ಯಪ್‌ನಲ್ಲಿ ಕಾಣಿಕೆ ಸ್ವೀಕರಿಸುತ್ತಿಲ್ಲ'},
+
+    // Bookings
+    'search_bookings': {'en': 'Search name, mobile number or reference', 'te': 'పేరు, మొబైల్ నంబర్ లేదా రిఫరెన్స్ వెతకండి', 'hi': 'नाम, मोबाइल नंबर या संदर्भ खोजें', 'ta': 'பெயர், மொபைல் எண் அல்லது குறிப்பைத் தேடு', 'kn': 'ಹೆಸರು, ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಅಥವಾ ಉಲ್ಲೇಖ ಹುಡುಕಿ'},
+    'no_bookings_yet': {'en': 'No bookings yet.', 'te': 'ఇంకా బుకింగ్‌లు లేవు.', 'hi': 'अभी कोई बुकिंग नहीं।', 'ta': 'இன்னும் முன்பதிவுகள் இல்லை.', 'kn': 'ಇನ್ನೂ ಬುಕಿಂಗ್‌ಗಳಿಲ್ಲ.'},
+    'no_bookings_day': {'en': 'No bookings for this day.', 'te': 'ఈ రోజుకు బుకింగ్‌లు లేవు.', 'hi': 'इस दिन कोई बुकिंग नहीं।', 'ta': 'இந்த நாளுக்கு முன்பதிவுகள் இல்லை.', 'kn': 'ಈ ದಿನಕ್ಕೆ ಬುಕಿಂಗ್‌ಗಳಿಲ್ಲ.'},
+    'n_to_come': {'en': '{n} to come', 'te': '{n} రావాలి', 'hi': '{n} आने हैं', 'ta': '{n} வர வேண்டும்', 'kn': '{n} ಬರಬೇಕು'},
+    'all_days': {'en': 'All days', 'te': 'అన్ని రోజులు', 'hi': 'सभी दिन', 'ta': 'எல்லா நாட்களும்', 'kn': 'ಎಲ್ಲಾ ದಿನಗಳು'},
+
+    // Scan
+    'seva_event_ticket': {'en': 'Seva / event ticket', 'te': 'సేవ / కార్యక్రమ టికెట్', 'hi': 'सेवा / कार्यक्रम टिकट', 'ta': 'சேவை / நிகழ்ச்சி டிக்கெட்', 'kn': 'ಸೇವೆ / ಕಾರ್ಯಕ್ರಮ ಟಿಕೆಟ್'},
+    'passport': {'en': 'Passport', 'te': 'పాస్‌పోర్ట్', 'hi': 'पासपोर्ट', 'ta': 'பாஸ்போர்ட்', 'kn': 'ಪಾಸ್‌ಪೋರ್ಟ್'},
+    'point_camera': {'en': "Point the camera at the devotee's QR code", 'te': 'భక్తుడి QR కోడ్ వైపు కెమెరా చూపండి', 'hi': 'भक्त के QR कोड पर कैमरा रखें', 'ta': 'பக்தரின் QR குறியீட்டை நோக்கி கேமராவை வைக்கவும்', 'kn': 'ಭಕ್ತರ QR ಕೋಡ್ ಕಡೆಗೆ ಕ್ಯಾಮೆರಾ ತೋರಿಸಿ'},
+    'or_type': {'en': 'Or type it in', 'te': 'లేదా టైప్ చేయండి', 'hi': 'या टाइप करें', 'ta': 'அல்லது தட்டச்சு செய்யவும்', 'kn': 'ಅಥವಾ ಟೈಪ್ ಮಾಡಿ'},
+    'passport_code': {'en': 'Passport code', 'te': 'పాస్‌పోర్ట్ కోడ్', 'hi': 'पासपोर्ट कोड', 'ta': 'பாஸ்போர்ட் குறியீடு', 'kn': 'ಪಾಸ್‌ಪೋರ್ಟ್ ಕೋಡ್'},
+    'booking_reference': {'en': 'Booking or ticket reference', 'te': 'బుకింగ్ లేదా టికెట్ రిఫరెన్స్', 'hi': 'बुकिंग या टिकट संदर्भ', 'ta': 'முன்பதிவு அல்லது டிக்கெட் குறிப்பு', 'kn': 'ಬುಕಿಂಗ್ ಅಥವಾ ಟಿಕೆಟ್ ಉಲ್ಲೇಖ'},
+    'check': {'en': 'Check', 'te': 'తనిఖీ', 'hi': 'जाँचें', 'ta': 'சரிபார்', 'kn': 'ಪರಿಶೀಲಿಸಿ'},
+    'no_phone_find': {'en': 'No phone? Find by mobile number or name', 'te': 'ఫోన్ లేదా? మొబైల్ నంబర్ లేదా పేరుతో వెతకండి', 'hi': 'फ़ोन नहीं? मोबाइल नंबर या नाम से खोजें', 'ta': 'தொலைபேசி இல்லையா? மொபைல் எண் அல்லது பெயரால் தேடு', 'kn': 'ಫೋನ್ ಇಲ್ಲವೇ? ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಅಥವಾ ಹೆಸರಿನಿಂದ ಹುಡುಕಿ'},
+    'search_instead': {'en': 'Search by mobile number or name instead', 'te': 'బదులుగా మొబైల్ నంబర్ లేదా పేరుతో వెతకండి', 'hi': 'इसके बजाय मोबाइल नंबर या नाम से खोजें', 'ta': 'அதற்குப் பதிலாக மொபைல் எண் அல்லது பெயரால் தேடு', 'kn': 'ಬದಲಿಗೆ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಅಥವಾ ಹೆಸರಿನಿಂದ ಹುಡುಕಿ'},
+    'not_found': {'en': 'Not found', 'te': 'కనబడలేదు', 'hi': 'नहीं मिला', 'ta': 'கிடைக்கவில்லை', 'kn': 'ಸಿಗಲಿಲ್ಲ'},
+    'scan_next': {'en': 'Scan next', 'te': 'తదుపరి స్కాన్', 'hi': 'अगला स्कैन', 'ta': 'அடுத்ததை ஸ்கேன்', 'kn': 'ಮುಂದಿನದನ್ನು ಸ್ಕ್ಯಾನ್'},
+    'mark_received': {'en': 'Mark as received', 'te': 'స్వీకరించినట్లు గుర్తించండి', 'hi': 'प्राप्त के रूप में चिह्नित करें', 'ta': 'பெறப்பட்டதாகக் குறி', 'kn': 'ಸ್ವೀಕರಿಸಿದಂತೆ ಗುರುತಿಸಿ'},
+    'received_welcome': {'en': 'Received — welcome them in', 'te': 'స్వీకరించారు — లోపలికి స్వాగతించండి', 'hi': 'प्राप्त — उनका स्वागत करें', 'ta': 'பெறப்பட்டது — உள்ளே வரவேற்கவும்', 'kn': 'ಸ್ವೀಕರಿಸಲಾಗಿದೆ — ಒಳಗೆ ಸ್ವಾಗತಿಸಿ'},
+    'already_used': {'en': 'Already used', 'te': 'ఇప్పటికే ఉపయోగించారు', 'hi': 'पहले ही उपयोग हो चुका', 'ta': 'ஏற்கனவே பயன்படுத்தப்பட்டது', 'kn': 'ಈಗಾಗಲೇ ಬಳಸಲಾಗಿದೆ'},
+    'valid_booking': {'en': 'Valid booking', 'te': 'చెల్లుబాటు అయ్యే బుకింగ్', 'hi': 'वैध बुकिंग', 'ta': 'செல்லுபடியாகும் முன்பதிவு', 'kn': 'ಮಾನ್ಯ ಬುಕಿಂಗ್'},
+    'valid_ticket': {'en': 'Valid ticket', 'te': 'చెల్లుబాటు అయ్యే టికెట్', 'hi': 'वैध टिकट', 'ta': 'செல்லுபடியாகும் டிக்கெட்', 'kn': 'ಮಾನ್ಯ ಟಿಕೆಟ್'},
+    'camera_unavailable': {'en': 'Camera unavailable. Type the reference below.', 'te': 'కెమెరా అందుబాటులో లేదు. కింద రిఫరెన్స్ టైప్ చేయండి.', 'hi': 'कैमरा उपलब्ध नहीं। नीचे संदर्भ टाइप करें।', 'ta': 'கேமரா கிடைக்கவில்லை. கீழே குறிப்பைத் தட்டச்சு செய்யவும்.', 'kn': 'ಕ್ಯಾಮೆರಾ ಲಭ್ಯವಿಲ್ಲ. ಕೆಳಗೆ ಉಲ್ಲೇಖ ಟೈಪ್ ಮಾಡಿ.'},
+    'stamped': {'en': 'Stamped', 'te': 'ముద్ర వేశారు', 'hi': 'मुहर लगी', 'ta': 'முத்திரையிடப்பட்டது', 'kn': 'ಮುದ್ರೆ ಹಾಕಲಾಗಿದೆ'},
+    'mark_visited': {'en': 'Mark visited today', 'te': 'ఈ రోజు సందర్శించినట్లు గుర్తించండి', 'hi': 'आज की यात्रा दर्ज करें', 'ta': 'இன்று வந்ததாகக் குறி', 'kn': 'ಇಂದು ಭೇಟಿ ನೀಡಿದಂತೆ ಗುರುತಿಸಿ'},
+    'visited_which': {'en': 'Visited which temple', 'te': 'ఏ ఆలయాన్ని సందర్శించారు', 'hi': 'किस मंदिर की यात्रा', 'ta': 'எந்தக் கோயிலுக்கு வந்தார்', 'kn': 'ಯಾವ ದೇವಾಲಯಕ್ಕೆ ಭೇಟಿ'},
+
+    // Account
+    'sign_in_email': {'en': 'Sign-in email', 'te': 'సైన్-ఇన్ ఇమెయిల్', 'hi': 'साइन-इन ईमेल', 'ta': 'உள்நுழைவு மின்னஞ்சல்', 'kn': 'ಸೈನ್-ಇನ್ ಇಮೇಲ್'},
+    'name': {'en': 'Name', 'te': 'పేరు', 'hi': 'नाम', 'ta': 'பெயர்', 'kn': 'ಹೆಸರು'},
+    'mobile_number': {'en': 'Mobile number', 'te': 'మొబైల్ నంబర్', 'hi': 'मोबाइल नंबर', 'ta': 'மொபைல் எண்', 'kn': 'ಮೊಬೈಲ್ ಸಂಖ್ಯೆ'},
+    'profile': {'en': 'Profile', 'te': 'ప్రొఫైల్', 'hi': 'प्रोफ़ाइल', 'ta': 'சுயவிவரம்', 'kn': 'ಪ್ರೊಫೈಲ್'},
+    'change_password': {'en': 'Change password', 'te': 'పాస్‌వర్డ్ మార్చండి', 'hi': 'पासवर्ड बदलें', 'ta': 'கடவுச்சொல்லை மாற்று', 'kn': 'ಪಾಸ್‌ವರ್ಡ್ ಬದಲಿಸಿ'},
+    'current_password': {'en': 'Current password', 'te': 'ప్రస్తుత పాస్‌వర్డ్', 'hi': 'वर्तमान पासवर्ड', 'ta': 'தற்போதைய கடவுச்சொல்', 'kn': 'ಪ್ರಸ್ತುತ ಪಾಸ್‌ವರ್ಡ್'},
+    'new_password': {'en': 'New password', 'te': 'కొత్త పాస్‌వర్డ్', 'hi': 'नया पासवर्ड', 'ta': 'புதிய கடவுச்சொல்', 'kn': 'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್'},
+    'help': {'en': 'Help', 'te': 'సహాయం', 'hi': 'सहायता', 'ta': 'உதவி', 'kn': 'ಸಹಾಯ'},
+    'help_support': {'en': 'Help & support', 'te': 'సహాయం & మద్దతు', 'hi': 'सहायता और समर्थन', 'ta': 'உதவி & ஆதரவு', 'kn': 'ಸಹಾಯ ಮತ್ತು ಬೆಂಬಲ'},
+    'help_hint': {'en': 'Ask the {name} team. Answers appear in the app.', 'te': '{name} బృందాన్ని అడగండి. సమాధానాలు యాప్‌లో కనిపిస్తాయి.', 'hi': '{name} टीम से पूछें। जवाब ऐप में दिखेंगे।', 'ta': '{name} குழுவிடம் கேளுங்கள். பதில்கள் செயலியில் தோன்றும்.', 'kn': '{name} ತಂಡವನ್ನು ಕೇಳಿ. ಉತ್ತರಗಳು ಆ್ಯಪ್‌ನಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.'},
+    'sign_out': {'en': 'Sign out', 'te': 'సైన్ అవుట్', 'hi': 'साइन आउट', 'ta': 'வெளியேறு', 'kn': 'ಸೈನ್ ಔಟ್'},
+    'preferences': {'en': 'Preferences', 'te': 'ప్రాధాన్యతలు', 'hi': 'प्राथमिकताएँ', 'ta': 'விருப்பங்கள்', 'kn': 'ಆದ್ಯತೆಗಳು'},
+
+    // Welcome
+    'sign_in': {'en': 'Sign in', 'te': 'సైన్ ఇన్', 'hi': 'साइन इन', 'ta': 'உள்நுழை', 'kn': 'ಸೈನ್ ಇನ್'},
+    'create_account': {'en': 'Create account', 'te': 'ఖాతా సృష్టించండి', 'hi': 'खाता बनाएँ', 'ta': 'கணக்கு உருவாக்கு', 'kn': 'ಖಾತೆ ರಚಿಸಿ'},
+    'email': {'en': 'Email', 'te': 'ఇమెయిల్', 'hi': 'ईमेल', 'ta': 'மின்னஞ்சல்', 'kn': 'ಇಮೇಲ್'},
+    'password': {'en': 'Password', 'te': 'పాస్‌వర్డ్', 'hi': 'पासवर्ड', 'ta': 'கடவுச்சொல்', 'kn': 'ಪಾಸ್‌ವರ್ಡ್'},
+    'your_name': {'en': 'Your name', 'te': 'మీ పేరు', 'hi': 'आपका नाम', 'ta': 'உங்கள் பெயர்', 'kn': 'ನಿಮ್ಮ ಹೆಸರು'},
+    'welcome_for': {'en': 'For temple trusts, committees and temple offices.', 'te': 'ఆలయ ట్రస్టులు, కమిటీలు, ఆలయ కార్యాలయాల కోసం.', 'hi': 'मंदिर ट्रस्ट, समितियों और मंदिर कार्यालयों के लिए।', 'ta': 'கோயில் அறக்கட்டளைகள், குழுக்கள், கோயில் அலுவலகங்களுக்காக.', 'kn': 'ದೇವಾಲಯ ಟ್ರಸ್ಟ್‌ಗಳು, ಸಮಿತಿಗಳು ಮತ್ತು ದೇವಾಲಯ ಕಚೇರಿಗಳಿಗಾಗಿ.'},
+    'welcome_same_login': {'en': 'Temple portal and super admin accounts sign in with the same email and password as on the web.', 'te': 'ఆలయ పోర్టల్, సూపర్ అడ్మిన్ ఖాతాలు వెబ్‌లోని అదే ఇమెయిల్, పాస్‌వర్డ్‌తో సైన్ ఇన్ అవుతాయి.', 'hi': 'मंदिर पोर्टल और सुपर एडमिन खाते वेब वाले ईमेल और पासवर्ड से ही साइन इन करते हैं।', 'ta': 'கோயில் போர்டல், சூப்பர் அட்மின் கணக்குகள் இணையத்தில் உள்ள அதே மின்னஞ்சல், கடவுச்சொல்லுடன் உள்நுழைகின்றன.', 'kn': 'ದೇವಾಲಯ ಪೋರ್ಟಲ್ ಮತ್ತು ಸೂಪರ್ ಅಡ್ಮಿನ್ ಖಾತೆಗಳು ವೆಬ್‌ನ ಅದೇ ಇಮೇಲ್ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್‌ನಿಂದ ಸೈನ್ ಇನ್ ಆಗುತ್ತವೆ.'},
+    'phone_hint': {'en': 'We call this number to confirm you represent the temple', 'te': 'మీరు ఆలయ ప్రతినిధి అని నిర్ధారించడానికి ఈ నంబర్‌కు కాల్ చేస్తాం', 'hi': 'मंदिर प्रतिनिधित्व की पुष्टि के लिए हम इस नंबर पर कॉल करेंगे', 'ta': 'நீங்கள் கோயிலைப் பிரதிநிதித்துவப்படுத்துகிறீர்கள் என்பதை உறுதிப்படுத்த இந்த எண்ணை அழைப்போம்', 'kn': 'ನೀವು ದೇವಾಲಯವನ್ನು ಪ್ರತಿನಿಧಿಸುತ್ತೀರಿ ಎಂದು ಖಚಿತಪಡಿಸಲು ಈ ಸಂಖ್ಯೆಗೆ ಕರೆ ಮಾಡುತ್ತೇವೆ'},
+    'password_hint': {'en': 'Password (8 or more characters)', 'te': 'పాస్‌వర్డ్ (8 లేదా ఎక్కువ అక్షరాలు)', 'hi': 'पासवर्ड (8 या अधिक अक्षर)', 'ta': 'கடவுச்சொல் (8 அல்லது அதற்கு மேற்பட்ட எழுத்துகள்)', 'kn': 'ಪಾಸ್‌ವರ್ಡ್ (8 ಅಥವಾ ಹೆಚ್ಚು ಅಕ್ಷರಗಳು)'},
+    'after_signup': {
+      'en': 'After signing up, find your temple and ask to manage it — or register it if it is not listed yet. Our team confirms every request before a temple is handed over.',
+      'te': 'సైన్ అప్ తర్వాత మీ ఆలయాన్ని వెతికి నిర్వహించడానికి అభ్యర్థించండి — లేదా జాబితాలో లేకపోతే నమోదు చేయండి. ఆలయాన్ని అప్పగించే ముందు మా బృందం ప్రతి అభ్యర్థనను నిర్ధారిస్తుంది.',
+      'hi': 'साइन अप के बाद अपना मंदिर खोजें और प्रबंधन का अनुरोध करें — या सूचीबद्ध न हो तो पंजीकृत करें। मंदिर सौंपने से पहले हमारी टीम हर अनुरोध की पुष्टि करती है।',
+      'ta': 'பதிவு செய்த பிறகு உங்கள் கோயிலைத் தேடி நிர்வகிக்கக் கோருங்கள் — அல்லது பட்டியலில் இல்லையெனில் பதிவு செய்யுங்கள். கோயிலை ஒப்படைக்கும் முன் எங்கள் குழு ஒவ்வொரு கோரிக்கையையும் உறுதிப்படுத்தும்.',
+      'kn': 'ಸೈನ್ ಅಪ್ ನಂತರ ನಿಮ್ಮ ದೇವಾಲಯವನ್ನು ಹುಡುಕಿ ನಿರ್ವಹಿಸಲು ವಿನಂತಿಸಿ — ಅಥವಾ ಪಟ್ಟಿಯಲ್ಲಿಲ್ಲದಿದ್ದರೆ ನೋಂದಾಯಿಸಿ. ದೇವಾಲಯವನ್ನು ಹಸ್ತಾಂತರಿಸುವ ಮೊದಲು ನಮ್ಮ ತಂಡ ಪ್ರತಿ ವಿನಂತಿಯನ್ನು ಖಚಿತಪಡಿಸುತ್ತದೆ.',
+    },
+
+    // Admin
+    'admin': {'en': 'Admin', 'te': 'అడ్మిన్', 'hi': 'एडमिन', 'ta': 'நிர்வாகம்', 'kn': 'ಅಡ್ಮಿನ್'},
+    'admin_subtitle': {'en': 'Super admin — every temple, and the approval queues.', 'te': 'సూపర్ అడ్మిన్ — ప్రతి ఆలయం, ఆమోద క్యూలు.', 'hi': 'सुपर एडमिन — हर मंदिर और स्वीकृति कतारें।', 'ta': 'சூப்பர் அட்மின் — ஒவ்வொரு கோயிலும், ஒப்புதல் வரிசைகளும்.', 'kn': 'ಸೂಪರ್ ಅಡ್ಮಿನ್ — ಪ್ರತಿ ದೇವಾಲಯ ಮತ್ತು ಅನುಮೋದನೆ ಸರತಿಗಳು.'},
+    'waiting_for_you': {'en': 'Waiting for you', 'te': 'మీ కోసం వేచి ఉన్నవి', 'hi': 'आपकी प्रतीक्षा में', 'ta': 'உங்களுக்காக காத்திருப்பவை', 'kn': 'ನಿಮಗಾಗಿ ಕಾಯುತ್ತಿರುವವು'},
+    'temples_to_list': {'en': 'Temples to list', 'te': 'జాబితా చేయాల్సిన ఆలయాలు', 'hi': 'सूचीबद्ध करने के लिए मंदिर', 'ta': 'பட்டியலிட வேண்டிய கோயில்கள்', 'kn': 'ಪಟ್ಟಿ ಮಾಡಬೇಕಾದ ದೇವಾಲಯಗಳು'},
+    'events_to_review': {'en': 'Events to review', 'te': 'సమీక్షించాల్సిన కార్యక్రమాలు', 'hi': 'समीक्षा के लिए कार्यक्रम', 'ta': 'ஆய்வு செய்ய வேண்டிய நிகழ்ச்சிகள்', 'kn': 'ಪರಿಶೀಲಿಸಬೇಕಾದ ಕಾರ್ಯಕ್ರಮಗಳು'},
+    'money': {'en': 'Money', 'te': 'డబ్బు', 'hi': 'धन', 'ta': 'பணம்', 'kn': 'ಹಣ'},
+    'finance_settlements': {'en': 'Finance & settlements', 'te': 'ఆర్థికం & సెటిల్‌మెంట్లు', 'hi': 'वित्त और निपटान', 'ta': 'நிதி & தீர்வுகள்', 'kn': 'ಹಣಕಾಸು ಮತ್ತು ಇತ್ಯರ್ಥಗಳು'},
+    'finance_settlements_hint': {'en': 'Seva payments today, what each temple is owed, payouts to make', 'te': 'ఈ రోజు సేవ చెల్లింపులు, ప్రతి ఆలయానికి రావాల్సినవి, చేయాల్సిన చెల్లింపులు', 'hi': 'आज के सेवा भुगतान, हर मंदिर का बकाया, किए जाने वाले भुगतान', 'ta': 'இன்றைய சேவை கட்டணங்கள், ஒவ்வொரு கோயிலுக்கும் வர வேண்டியது, செய்ய வேண்டிய பணம் செலுத்தல்கள்', 'kn': 'ಇಂದಿನ ಸೇವಾ ಪಾವತಿಗಳು, ಪ್ರತಿ ದೇವಾಲಯಕ್ಕೆ ಬರಬೇಕಾದದ್ದು, ಮಾಡಬೇಕಾದ ಪಾವತಿಗಳು'},
+    'all_temples': {'en': 'All temples', 'te': 'అన్ని ఆలయాలు', 'hi': 'सभी मंदिर', 'ta': 'எல்லா கோயில்களும்', 'kn': 'ಎಲ್ಲಾ ದೇವಾಲಯಗಳು'},
+    'published': {'en': 'published', 'te': 'ప్రచురించినవి', 'hi': 'प्रकाशित', 'ta': 'வெளியிடப்பட்டவை', 'kn': 'ಪ್ರಕಟಿಸಿದವು'},
+    'in_review_lc': {'en': 'in review', 'te': 'సమీక్షలో', 'hi': 'समीक्षा में', 'ta': 'ஆய்வில்', 'kn': 'ಪರಿಶೀಲನೆಯಲ್ಲಿ'},
+    'draft': {'en': 'draft', 'te': 'చిత్తుప్రతి', 'hi': 'मसौदा', 'ta': 'வரைவு', 'kn': 'ಕರಡು'},
+  };
+}
+
+/// The globe button that opens the language picker; on the home screens.
+class LanguageButton extends StatelessWidget {
+  const LanguageButton({super.key, this.color});
+
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final code = Localizations.localeOf(context).languageCode;
+    return Tooltip(
+      message: s('language'),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => showLanguageSheet(context),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: (color ?? Theme.of(context).colorScheme.onSurface).withValues(alpha: 0.35)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.translate, size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(AppLanguage.byCode(code).nativeName, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// The language picker. Works without a [LocaleController] in the tree (as
+/// in tests), where it simply shows the list.
+Future<void> showLanguageSheet(BuildContext context) {
+  final s = S.of(context);
+  final current = Localizations.localeOf(context).languageCode;
+  LocaleController? controller;
+  try {
+    controller = context.read<LocaleController>();
+  } catch (_) {
+    controller = null;
+  }
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (c) {
+      final theme = Theme.of(c);
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s('choose_language'), style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(s('language_note'), style: theme.textTheme.bodySmall),
+            const SizedBox(height: 14),
+            for (final l in AppLanguage.all)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: l.code == current ? theme.colorScheme.primary.withValues(alpha: 0.1) : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      controller?.set(l.code);
+                      Navigator.pop(c);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(children: [
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(l.nativeName, style: theme.textTheme.titleMedium),
+                            if (l.name != l.nativeName) Text(l.name, style: theme.textTheme.bodySmall),
+                          ]),
+                        ),
+                        if (l.code == current) Icon(Icons.check_circle, color: theme.colorScheme.primary),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+        ),
+      );
+    },
+  );
+}

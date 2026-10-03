@@ -164,6 +164,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           if (confirmed && !expired) ...[
             const SizedBox(height: 14),
             FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: Palette.tulsi, padding: const EdgeInsets.symmetric(vertical: 18)),
               onPressed: _busy ? null : _markReceived,
               icon: const Icon(Icons.how_to_reg),
               label: Text(_busy ? 'Marking…' : 'Mark received'),
