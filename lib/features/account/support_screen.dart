@@ -285,7 +285,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
                 child: Row(children: [
                   Expanded(child: TextField(controller: _reply, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: 'Write a reply'))),
                   const SizedBox(width: 8),
-                  IconButton.filled(onPressed: _busy ? null : _send, icon: const Icon(Icons.send)),
+                  SendButton(onPressed: _send, busy: _busy),
                 ]),
               ),
             ),
