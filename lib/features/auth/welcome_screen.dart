@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/brand.dart';
+import '../../core/l10n.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -21,52 +22,89 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
+    final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-              children: [
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [BoxShadow(color: Palette.kumkum.withValues(alpha: 0.3), blurRadius: 18, offset: const Offset(0, 6))],
+      body: Stack(children: [
+        // The kumkum backdrop behind the logo; the form sits on a card below.
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 300 + top,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(gradient: Palette.kumkumGradient, borderRadius: BorderRadius.vertical(bottom: Radius.circular(40))),
+          ),
+        ),
+        Positioned(right: -60, top: -40, child: _ring(220)),
+        Positioned(left: -40, top: 160 + top, child: _ring(140)),
+        SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                children: [
+                  Align(alignment: Alignment.centerRight, child: LanguageButton(color: Colors.white.withValues(alpha: 0.95))),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 22, offset: const Offset(0, 8))],
+                      ),
+                      child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Image.asset('assets/brand/logo.png', width: 92, height: 92, semanticLabel: Brand.appName)),
                     ),
-                    child: Image.asset('assets/brand/logo.png', width: 96, height: 96, semanticLabel: Brand.appName),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text(Brand.appName, textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
-                const SizedBox(height: 6),
-                Text(
-                  'For temple trusts, committees and temple offices. ${Brand.tagline}.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Sign in'), icon: Icon(Icons.login)),
-                    ButtonSegment(value: true, label: Text('Create account'), icon: Icon(Icons.person_add_alt)),
-                  ],
-                  selected: {_register},
-                  onSelectionChanged: (s) => setState(() => _register = s.first),
-                ),
-                const SizedBox(height: 20),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: _register ? const _RegisterForm(key: ValueKey('r')) : const _LoginForm(key: ValueKey('l')),
-                ),
-              ],
+                  const SizedBox(height: 18),
+                  Text(Brand.appName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontFamily: TrustTheme.serif, fontSize: 27, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text(s('welcome_for'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
+                  Text(Brand.tagline, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
+                  const SizedBox(height: 28),
+                  Container(
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(28), boxShadow: TrustStyle.of(context).cardShadow),
+                    child: Material(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(28),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          SegmentedButton<bool>(
+                            segments: [
+                              ButtonSegment(value: false, label: Text(s('sign_in')), icon: const Icon(Icons.login)),
+                              ButtonSegment(value: true, label: Text(s('create_account')), icon: const Icon(Icons.person_add_alt)),
+                            ],
+                            selected: {_register},
+                            onSelectionChanged: (v) => setState(() => _register = v.first),
+                          ),
+                          const SizedBox(height: 20),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            child: _register ? const _RegisterForm(key: ValueKey('r')) : const _LoginForm(key: ValueKey('l')),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
+      ]),
     );
   }
+
+  Widget _ring(double size) => IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 18)),
+        ),
+      );
 }
 
 class _LoginForm extends StatefulWidget {
@@ -107,26 +145,23 @@ class _LoginFormState extends State<_LoginForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Form(
       key: _form,
       child: AutofillGroup(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ApiTextField(controller: _email, label: 'Email', field: 'email', error: _error, keyboardType: TextInputType.emailAddress, required: true, autofillHints: const [AutofillHints.email]),
-            ApiTextField(controller: _password, label: 'Password', field: 'password', error: _error, obscure: true, required: true, autofillHints: const [AutofillHints.password]),
+            ApiTextField(controller: _email, label: s('email'), field: 'email', error: _error, keyboardType: TextInputType.emailAddress, required: true, autofillHints: const [AutofillHints.email], prefixIcon: Icons.mail_outline),
+            ApiTextField(controller: _password, label: s('password'), field: 'password', error: _error, obscure: true, required: true, autofillHints: const [AutofillHints.password], prefixIcon: Icons.lock_outline),
             if (_error != null && _error!.errors.isEmpty)
               Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!.message, style: TextStyle(color: Theme.of(context).colorScheme.error))),
             FilledButton(
               onPressed: _busy ? null : _submit,
-              child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Sign in'),
+              child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(s('sign_in')),
             ),
             const SizedBox(height: 12),
-            Text(
-              'Temple portal and super admin accounts sign in with the same email and password as on the web.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(s('welcome_same_login'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -178,34 +213,31 @@ class _RegisterFormState extends State<_RegisterForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Form(
       key: _form,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ApiTextField(controller: _name, label: 'Your name', field: 'name', error: _error, required: true, autofillHints: const [AutofillHints.name]),
-          ApiTextField(controller: _email, label: 'Email', field: 'email', error: _error, keyboardType: TextInputType.emailAddress, required: true),
+          ApiTextField(controller: _name, label: s('your_name'), field: 'name', error: _error, required: true, autofillHints: const [AutofillHints.name], prefixIcon: Icons.person_outline),
+          ApiTextField(controller: _email, label: s('email'), field: 'email', error: _error, keyboardType: TextInputType.emailAddress, required: true, prefixIcon: Icons.mail_outline),
           ApiTextField(
             controller: _phone,
-            label: 'Mobile number',
+            label: s('mobile_number'),
             field: 'phone',
             error: _error,
             keyboardType: TextInputType.phone,
             required: true,
-            hint: 'We call this number to confirm you represent the temple',
+            hint: s('phone_hint'),
+            prefixIcon: Icons.phone_outlined,
           ),
-          ApiTextField(controller: _password, label: 'Password (8 or more characters)', field: 'password', error: _error, obscure: true, required: true),
+          ApiTextField(controller: _password, label: s('password_hint'), field: 'password', error: _error, obscure: true, required: true, prefixIcon: Icons.lock_outline),
           FilledButton(
             onPressed: _busy ? null : _submit,
-            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Create account'),
+            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(s('create_account')),
           ),
           const SizedBox(height: 12),
-          Text(
-            'After signing up, find your temple and ask to manage it — or register it if it is not listed yet. '
-            'Our team confirms every request before a temple is handed over.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(s('after_signup'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

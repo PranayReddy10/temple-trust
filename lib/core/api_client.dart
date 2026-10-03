@@ -50,6 +50,10 @@ class ApiClient {
   String platform = 'trust-app';
   String appVersion = '0.1.0';
 
+  /// The interface language, sent as Accept-Language so labels the server
+  /// writes (statuses, option lists) come back in the same tongue.
+  String language = 'en';
+
   /// Called when the server says the token is no longer good, so the app
   /// can return to the sign-in screen instead of failing screen by screen.
   void Function()? onUnauthenticated;
@@ -79,6 +83,7 @@ class ApiClient {
         'Content-Type': 'application/json',
         'X-Platform': platform,
         'X-App-Version': appVersion,
+        'Accept-Language': language,
         if (token != null) 'Authorization': 'Bearer $token',
       };
 

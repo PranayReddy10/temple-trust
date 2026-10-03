@@ -3,9 +3,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
-
+import '../../core/l10n.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../counter/find_booking_screen.dart';
 import '../counter/scan_screen.dart';
@@ -22,7 +23,11 @@ import 'sevas_screen.dart';
 import 'temple_qr_screen.dart';
 import 'timings_screen.dart';
 
-/// One temple: today at a glance, then everything the team manages.
+typedef Json = Map<String, dynamic>;
+
+Json _map(dynamic v) => (v as Map?)?.cast<String, dynamic>() ?? const {};
+
+/// One temple: today at a glance, the money, then everything the team manages.
 class TempleDashboardScreen extends StatefulWidget {
   const TempleDashboardScreen({super.key, required this.templeId, required this.title});
 
@@ -35,6 +40,7 @@ class TempleDashboardScreen extends StatefulWidget {
 
 class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
   late Future<TrustTemple> _future = _load();
+  late Future<Json?> _finance = _loadFinance();
   bool _coverBusy = false;
 
   Future<TrustTemple> _load() async {
@@ -42,8 +48,20 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
     return TrustTemple.fromJson((res['data'] as Map).cast<String, dynamic>());
   }
 
+  /// The month and the balance, for the report card; null when it cannot be
+  /// read, and the card simply points to the finance screen.
+  Future<Json?> _loadFinance() async {
+    try {
+      final res = await context.read<Session>().api.get('temples/${widget.templeId}/finance');
+      return _map(res['data']);
+    } on ApiException {
+      return null;
+    }
+  }
+
   void _reload() => setState(() {
         _future = _load();
+        _finance = _loadFinance();
       });
 
   Future<void> _setStatus(String status) async {
@@ -64,9 +82,10 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const ListTile(title: Text('Cover photo'), subtitle: Text('The first picture devotees see of the temple.')),
-          ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Take a photo'), onTap: () => Navigator.pop(c, 'camera')),
-          ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Choose from the phone'), onTap: () => Navigator.pop(c, 'gallery')),
-          ListTile(leading: const Icon(Icons.collections_outlined), title: const Text('Pick one already uploaded'), onTap: () => Navigator.pop(c, 'existing')),
+          ListTile(leading: const IconBadge(Icons.photo_camera_outlined), title: const Text('Take a photo'), onTap: () => Navigator.pop(c, 'camera')),
+          ListTile(leading: const IconBadge(Icons.photo_library_outlined), title: const Text('Choose from the phone'), onTap: () => Navigator.pop(c, 'gallery')),
+          ListTile(leading: const IconBadge(Icons.collections_outlined), title: const Text('Pick one already uploaded'), onTap: () => Navigator.pop(c, 'existing')),
+          const SizedBox(height: 8),
         ]),
       ),
     );
@@ -102,33 +121,30 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final isAdmin = context.watch<Session>().isSuperAdmin;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title, overflow: TextOverflow.ellipsis),
-        actions: [
-          // A super admin moves a temple between draft, review and published.
-          if (context.watch<Session>().isSuperAdmin)
-            PopupMenuButton<String>(
-              tooltip: 'Listing status',
-              icon: const Icon(Icons.publish_outlined),
-              onSelected: _setStatus,
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'published', child: Text('Publish')),
-                PopupMenuItem(value: 'in_review', child: Text('Move to review')),
-                PopupMenuItem(value: 'draft', child: Text('Back to draft')),
-                PopupMenuItem(value: 'archived', child: Text('Archive')),
-              ],
-            ),
-        ],
-      ),
       body: FutureBuilder<TrustTemple>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+            return Column(children: [
+              AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
+              const Expanded(child: Center(child: CircularProgressIndicator())),
+            ]);
+          }
+          if (snap.hasError) {
+            return Column(children: [
+              AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
+              Expanded(child: ErrorView(error: snap.error!, onRetry: _reload)),
+            ]);
+          }
           final t = snap.data!;
-          final s = t.stats;
-          int n(String k) => (s[k] as num?)?.toInt() ?? 0;
+          final st = t.stats;
+          int n(String k) => (st[k] as num?)?.toInt() ?? 0;
+          final statusValue = '${(t.raw['status'] as Map?)?['value']}';
+          final payments = st['payments'];
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -137,143 +153,199 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                 await _future;
               } catch (_) {}
             },
-            child: ListView(
+            child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-              children: [
-                _Cover(temple: t, busy: _coverBusy, onChange: () => _changeCover(t)),
-                if (_address(t).isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Icon(Icons.place_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(_address(t), style: Theme.of(context).textTheme.bodyMedium)),
-                    ]),
-                  ),
-                Wrap(spacing: 6, runSpacing: 6, children: [
-                  if (t.statusLabel != null) StatusChip.forStatus('${(t.raw['status'] as Map?)?['value']}', t.statusLabel!),
-                  if (t.trustLabel != null) StatusChip(t.trustLabel!),
-                  if (t.deity != null) StatusChip(t.deity!, color: Theme.of(context).colorScheme.tertiary),
-                ]),
-                if ((t.raw['status'] as Map?)?['value'] != 'published')
-                  const Padding(
-                    padding: EdgeInsets.only(top: 10),
-                    child: Text('Not yet visible to devotees. Fill in timings, sevas and photos; the editors publish it once reviewed.'),
-                  ),
-                if (s['payments'] == 'rejected')
-                  RejectionNotice(
-                    reason: s['payments_rejection_reason'] as String?,
-                    onTap: () => _open(PaymentsVerificationScreen(templeId: t.id)),
-                  )
-                else if (s['payments'] != null && s['payments'] != 'approved')
-                  Card(
-                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                    child: ListTile(
-                      leading: const Icon(Icons.verified_user_outlined),
-                      title: Text(switch ('${s['payments']}') {
-                        'pending' => 'Payments: being checked',
-                        'rejected' => 'Payments: not approved',
-                        _ => 'Take money in the app',
-                      }),
-                      subtitle: Text(switch ('${s['payments']}') {
-                        'pending' => 'Paid sevas, tickets and the hundi open once our team approves your details.',
-                        'rejected' => 'See why, fix it and send again.',
-                        _ => 'For paid sevas, paid tickets or the online hundi: add the bank account, Aadhaar, temple proof and your photo.',
-                      }),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _open(PaymentsVerificationScreen(templeId: t.id)),
-                    ),
-                  ),
-                const SectionTitle('Today'),
-                // Who is coming today and what they paid, at a glance.
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _open(FinanceScreen(templeId: t.id, title: t.name)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(children: [
-                        Expanded(
-                          child: Figure(
-                            'Paid for today\'s sevas',
-                            rupees(s['amount_today_paise']),
-                            emphasis: true,
-                            color: Theme.of(context).colorScheme.primary,
-                            caption: '${n('bookings_today')} bookings · ${n('people_today')} people',
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ]),
-                    ),
-                  ),
-                ),
-                // Online hundi: what devotees gave in the app today and this month.
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _open(DonationsScreen(templeId: t.id)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(children: [
-                        Expanded(
-                          child: Figure(
-                            'Hundi today',
-                            rupees(s['hundi_today_paise']),
-                            emphasis: true,
-                            color: Theme.of(context).colorScheme.secondary,
-                            caption: s['payments'] != null && s['payments'] != 'approved'
-                                ? 'Opens after payments are approved'
-                                : s['hundi_enabled'] == false
-                                    ? 'Online hundi is off'
-                                    : '${n('hundi_today_count')} gifts · ${rupees(s['hundi_month_paise'])} this month',
-                          ),
-                        ),
-                        const Icon(Icons.volunteer_activism_outlined),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right),
-                      ]),
-                    ),
-                  ),
-                ),
-                if (s['fee_percent'] != null) ...[
-                  const SizedBox(height: 4),
-                  FeeShareCard(feePercent: s['fee_percent'], donationFeePercent: s['donation_fee_percent'], compact: true),
-                ],
-                const SizedBox(height: 10),
-                GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1.15,
-                  children: [
-                    _Stat('Bookings today', n('bookings_today'), Icons.confirmation_number_outlined, onTap: () => _open(BookingsScreen(templeId: t.id, todayOnly: true))),
-                    _Stat('Received', n('received_today'), Icons.how_to_reg_outlined),
-                    _Stat('Upcoming', n('bookings_upcoming'), Icons.event_available_outlined, onTap: () => _open(BookingsScreen(templeId: t.id))),
-                    _Stat('Events ahead', n('events_upcoming'), Icons.celebration_outlined, onTap: () => _open(EventsScreen(templeId: t.id))),
-                    _Stat('In review', n('events_in_review'), Icons.hourglass_top_outlined, onTap: () => _open(EventsScreen(templeId: t.id))),
-                    _Stat('To answer', n('reviews_to_answer'), Icons.rate_review_outlined, onTap: () => _open(ReviewsScreen(templeId: t.id))),
-                    _Stat('Followers', n('followers'), Icons.notifications_active_outlined),
-                    _Stat('Likes', n('likes'), Icons.favorite_border),
-                    _Stat('Check-ins', n('visits'), Icons.verified_outlined),
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 240,
+                  pinned: true,
+                  stretch: true,
+                  backgroundColor: theme.scaffoldBackgroundColor,
+                  foregroundColor: theme.colorScheme.onSurface,
+                  actions: [
+                    if (isAdmin)
+                      PopupMenuButton<String>(
+                        tooltip: 'Listing status',
+                        icon: const Icon(Icons.publish_outlined),
+                        onSelected: _setStatus,
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'published', child: Text('Publish')),
+                          PopupMenuItem(value: 'in_review', child: Text('Move to review')),
+                          PopupMenuItem(value: 'draft', child: Text('Back to draft')),
+                          PopupMenuItem(value: 'archived', child: Text('Archive')),
+                        ],
+                      ),
                   ],
+                  flexibleSpace: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final collapsed = constraints.maxHeight <= kToolbarHeight + MediaQuery.paddingOf(context).top + 8;
+                      return FlexibleSpaceBar(
+                        titlePadding: const EdgeInsetsDirectional.only(start: 56, bottom: 14, end: 56),
+                        centerTitle: false,
+                        title: AnimatedOpacity(
+                          opacity: collapsed ? 1 : 0,
+                          duration: const Duration(milliseconds: 150),
+                          child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
+                        ),
+                        stretchModes: const [StretchMode.zoomBackground],
+                        background: _Cover(temple: t, busy: _coverBusy, onChange: () => _changeCover(t)),
+                      );
+                    },
+                  ),
                 ),
-                const SectionTitle('Manage'),
-                _Tile(Icons.edit_note, 'Temple details', 'Contact, location, visitor rules', () => _open(ProfileEditScreen(temple: t))),
-                _Tile(Icons.schedule, 'Darshan timings', 'Daily and weekday timings', () => _open(TimingsScreen(templeId: t.id))),
-                _Tile(Icons.event_busy_outlined, 'Closures', 'Eclipses, renovations, special days', () => _open(ClosuresScreen(templeId: t.id))),
-                _Tile(Icons.celebration_outlined, 'Events & festivals', 'Festivals, bhajans, programs; tickets and who is coming', () => _open(EventsScreen(templeId: t.id))),
-                _Tile(Icons.local_fire_department_outlined, 'Pujas & sevas', '${n('sevas')} listed · fees and app booking', () => _open(SevasScreen(templeId: t.id))),
-                _Tile(Icons.photo_library_outlined, 'Photos', '${n('photos')} photos', () => _open(PhotosScreen(templeId: t.id))),
-                _Tile(Icons.confirmation_number_outlined, 'Seva bookings', 'Who is coming, by day', () => _open(BookingsScreen(templeId: t.id))),
-                _Tile(Icons.account_balance_wallet_outlined, 'Finance', 'Amounts by day, payouts, payout account', () => _open(FinanceScreen(templeId: t.id, title: t.name))),
-                _Tile(Icons.volunteer_activism_outlined, 'Online hundi', 'Gifts from devotees in the app', () => _open(DonationsScreen(templeId: t.id))),
-                _Tile(Icons.rate_review_outlined, 'Devotee reviews', 'Read and reply', () => _open(ReviewsScreen(templeId: t.id))),
-                _Tile(Icons.qr_code_2, 'Temple QR code', 'Check-in code for the gate; print the poster', () => _open(TempleQrScreen(templeId: t.id, title: t.name))),
-                _Tile(Icons.person_search_outlined, 'Find a booking', 'Devotee without a phone: by mobile number, reference or name', () => _open(const FindBookingScreen())),
-                _Tile(Icons.qr_code_scanner, 'Scan at counter', 'Seva bookings, event tickets, and stamping a devotee\'s passport', () => _open(const ScanScreen())),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
+                  sliver: SliverList.list(children: [
+                    Text(t.name, style: theme.textTheme.headlineSmall),
+                    if (_address(t).isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Icon(Icons.place_outlined, size: 17, color: theme.colorScheme.primary),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(_address(t), style: theme.textTheme.bodySmall)),
+                        ]),
+                      ),
+                    const SizedBox(height: 10),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      if (t.statusLabel != null) StatusChip.forStatus(statusValue, t.statusLabel!),
+                      if (t.trustLabel != null) StatusChip(t.trustLabel!, icon: Icons.verified_outlined),
+                      if (t.deity != null) StatusChip(t.deity!, color: theme.colorScheme.tertiary),
+                    ]),
+                    const SizedBox(height: 14),
+                    if (statusValue != 'published') InfoBanner(icon: Icons.visibility_off_outlined, title: s('in_review'), body: s('not_visible_yet'), color: Palette.sky),
+                    if (payments == 'rejected')
+                      RejectionNotice(
+                        reason: st['payments_rejection_reason'] as String?,
+                        onTap: () => _open(PaymentsVerificationScreen(templeId: t.id)),
+                      )
+                    else if (payments != null && payments != 'approved')
+                      InfoBanner(
+                        icon: Icons.verified_user_outlined,
+                        title: payments == 'pending' ? s('payments_checking') : s('payments_setup'),
+                        body: payments == 'pending' ? s('payments_checking_body') : s('payments_setup_body'),
+                        color: payments == 'pending' ? const Color(0xFFB08A10) : Palette.saffron,
+                        onTap: () => _open(PaymentsVerificationScreen(templeId: t.id)),
+                      ),
+
+                    // Today, in one panel: who is coming and what they paid.
+                    SectionTitle(s('today')),
+                    HeroPanel(
+                      onTap: () => _open(BookingsScreen(templeId: t.id, todayOnly: true)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(s('paid_today_sevas').toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(rupees(st['amount_today_paise']), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 34, fontWeight: FontWeight.w600, height: 1.1)),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(children: [
+                          _HeroFigure(s('bookings'), '${n('bookings_today')}'),
+                          _HeroFigure(s('people'), '${n('people_today')}'),
+                          _HeroFigure(s('received'), '${n('received_today')}'),
+                          _HeroFigure(s('upcoming'), '${n('bookings_upcoming')}'),
+                        ]),
+                      ]),
+                    ),
+                    const SizedBox(height: 10),
+                    SoftCard(
+                      onTap: () => _open(DonationsScreen(templeId: t.id)),
+                      child: Row(children: [
+                        const IconBadge(Icons.volunteer_activism_outlined, color: Palette.gold, size: 44),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Figure(
+                            s('hundi_today'),
+                            rupees(st['hundi_today_paise']),
+                            color: const Color(0xFF8A6A00),
+                            caption: payments != null && payments != 'approved'
+                                ? s('opens_after_approval')
+                                : st['hundi_enabled'] == false
+                                    ? s('hundi_off')
+                                    : '${s('n_gifts', {'n': n('hundi_today_count')})} · ${rupees(st['hundi_month_paise'])} ${s('this_month').toLowerCase()}',
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                      ]),
+                    ),
+
+                    // The money, in short: this month and what is due.
+                    SectionTitle(
+                      s('financial_report'),
+                      trailing: TextButton(onPressed: () => _open(FinanceScreen(templeId: t.id, title: t.name)), child: Text(s('see_all'))),
+                    ),
+                    FutureBuilder<Json?>(
+                      future: _finance,
+                      builder: (context, fin) => _ReportCard(
+                        finance: fin.data,
+                        loading: fin.connectionState != ConnectionState.done,
+                        onOpen: () => _open(FinanceScreen(templeId: t.id, title: t.name)),
+                      ),
+                    ),
+                    if (st['fee_percent'] != null) ...[
+                      const SizedBox(height: 10),
+                      FeeShareCard(feePercent: st['fee_percent'], donationFeePercent: st['donation_fee_percent'], compact: true),
+                    ],
+
+                    SectionTitle(s('at_a_glance')),
+                    GridView.count(
+                      crossAxisCount: 3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.98,
+                      children: [
+                        MetricTile(label: s('events_ahead'), value: '${n('events_upcoming')}', icon: Icons.celebration_outlined, color: Palette.saffron, onTap: () => _open(EventsScreen(templeId: t.id))),
+                        MetricTile(label: s('in_review'), value: '${n('events_in_review')}', icon: Icons.hourglass_top_outlined, color: const Color(0xFFB08A10), onTap: () => _open(EventsScreen(templeId: t.id))),
+                        MetricTile(label: s('to_answer'), value: '${n('reviews_to_answer')}', icon: Icons.rate_review_outlined, color: Palette.sky, onTap: () => _open(ReviewsScreen(templeId: t.id))),
+                        MetricTile(label: s('followers'), value: '${n('followers')}', icon: Icons.notifications_active_outlined, color: Palette.kumkum),
+                        MetricTile(label: s('likes'), value: '${n('likes')}', icon: Icons.favorite_border, color: const Color(0xFFD1476B)),
+                        MetricTile(label: s('check_ins'), value: '${n('visits')}', icon: Icons.verified_outlined, color: Palette.tulsi),
+                      ],
+                    ),
+
+                    SectionTitle(s('at_the_counter')),
+                    HeroPanel(
+                      gradient: Palette.saffronGradient,
+                      onTap: () => _open(const ScanScreen()),
+                      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+                      child: Row(children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(16)),
+                          child: const Icon(Icons.qr_code_scanner, size: 30),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(s('scan_at_counter'), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 19, fontWeight: FontWeight.w600)),
+                            Text(s('scan_hint'), style: const TextStyle(fontSize: 12.5)),
+                          ]),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                      ]),
+                    ),
+                    const SizedBox(height: 10),
+                    ActionTile(icon: Icons.person_search_outlined, color: Palette.sky, title: s('find_booking'), subtitle: s('find_booking_long'), onTap: () => _open(const FindBookingScreen())),
+
+                    SectionTitle(s('manage')),
+                    ActionTile(icon: Icons.confirmation_number_outlined, color: Palette.tulsi, title: s('seva_bookings'), subtitle: s('seva_bookings_hint'), onTap: () => _open(BookingsScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.account_balance_wallet_outlined, title: s('finance'), subtitle: s('finance_hint'), onTap: () => _open(FinanceScreen(templeId: t.id, title: t.name))),
+                    ActionTile(icon: Icons.volunteer_activism_outlined, color: Palette.gold, title: s('online_hundi'), subtitle: s('hundi_hint'), onTap: () => _open(DonationsScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.local_fire_department_outlined, color: Palette.saffron, title: s('pujas_sevas'), subtitle: s('sevas_hint', {'n': n('sevas')}), onTap: () => _open(SevasScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.celebration_outlined, color: const Color(0xFFD1476B), title: s('events'), subtitle: s('events_hint'), onTap: () => _open(EventsScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.schedule, color: Palette.sky, title: s('darshan_timings'), subtitle: s('timings_hint'), onTap: () => _open(TimingsScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.event_busy_outlined, color: const Color(0xFF8D6E63), title: s('closures'), subtitle: s('closures_hint'), onTap: () => _open(ClosuresScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.edit_note, title: s('temple_details'), subtitle: s('temple_details_hint'), onTap: () => _open(ProfileEditScreen(temple: t))),
+                    ActionTile(icon: Icons.photo_library_outlined, color: Palette.tulsi, title: s('photos'), subtitle: s('n_photos', {'n': n('photos')}), onTap: () => _open(PhotosScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.rate_review_outlined, color: Palette.sky, title: s('reviews'), subtitle: s('reviews_hint'), badge: n('reviews_to_answer') > 0 ? '${n('reviews_to_answer')}' : null, onTap: () => _open(ReviewsScreen(templeId: t.id))),
+                    ActionTile(icon: Icons.qr_code_2, color: Palette.deep, title: s('temple_qr'), subtitle: s('temple_qr_hint'), onTap: () => _open(TempleQrScreen(templeId: t.id, title: t.name))),
+                  ]),
+                ),
               ],
             ),
           );
@@ -283,59 +355,76 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, this.icon, {this.onTap});
+class _HeroFigure extends StatelessWidget {
+  const _HeroFigure(this.label, this.value);
 
   final String label;
-  final int value;
-  final IconData icon;
-  final VoidCallback? onTap;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              Text('$value', style: theme.textTheme.headlineSmall),
-              Text(label, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ],
-          ),
-        ),
-      ),
+    return Expanded(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, height: 1.1)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
     );
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile(this.icon, this.title, this.subtitle, this.onTap);
+/// This month's takings and what is due to the temple, from the finance
+/// endpoint; a pointer to the full report while it loads or if it cannot.
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({required this.finance, required this.loading, required this.onOpen});
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+  final Json? finance;
+  final bool loading;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        child: ListTile(
-          leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-          title: Text(title),
-          subtitle: Text(subtitle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
-        ),
-      ),
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final f = finance;
+    if (f == null) {
+      return ActionTile(
+        icon: Icons.insert_chart_outlined,
+        title: s('financial_report'),
+        subtitle: s('full_report_hint'),
+        onTap: onOpen,
+        trailing: loading ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : null,
+      );
+    }
+    final month = _map(f['month']);
+    final balance = _map(f['balance']);
+    final ready = _map(balance['ready']);
+    final paid = _map(balance['paid']);
+    final allTime = f['all_time'] == null ? null : _map(f['all_time']);
+    int n(dynamic v) => (v as num?)?.toInt() ?? 0;
+    return SoftCard(
+      onTap: onOpen,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Figure(s('this_month'), rupees(month['total_paise'] ?? month['amount_paise']), emphasis: true, color: theme.colorScheme.primary, caption: '${s('n_bookings', {'n': n(month['bookings'])})} · ${s.people(n(month['people']))}')),
+          Expanded(child: Figure(s('due_to_temple'), rupees(ready['net_paise']), emphasis: true, color: Palette.tulsi, caption: s('n_bookings', {'n': n(ready['bookings'])}))),
+        ]),
+        const Divider(height: 22),
+        Row(children: [
+          Expanded(child: Figure(s('paid_to_date'), rupees(paid['net_paise']), caption: s('n_settlements', {'n': n(paid['settlements'])}))),
+          Expanded(
+            child: allTime == null
+                ? Figure(s('event_tickets'), rupees(_map(month['tickets'])['amount_paise']), caption: s('n_tickets', {'n': n(_map(month['tickets'])['count'])}))
+                : Figure(s('all_time'), rupees(allTime['total_paise']), caption: s('n_bookings', {'n': n(allTime['bookings'])})),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Icon(Icons.insert_chart_outlined, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Expanded(child: Text(s('full_report_hint'), style: theme.textTheme.bodySmall)),
+          Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
+        ]),
+      ]),
     );
   }
 }
@@ -361,33 +450,30 @@ class _Cover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Stack(fit: StackFit.expand, children: [
-            if (temple.imageUrl != null)
-              Image.network(temple.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: theme.colorScheme.surfaceContainerHighest))
-            else
-              ColoredBox(
-                color: theme.colorScheme.surfaceContainerHighest,
-                child: Icon(Icons.temple_hindu, size: 56, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
-              ),
-            Positioned(
-              right: 10,
-              bottom: 10,
-              child: FilledButton.tonalIcon(
-                onPressed: busy ? null : onChange,
-                icon: busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_camera_outlined, size: 18),
-                label: Text(busy ? 'Uploading…' : (temple.imageUrl == null ? 'Add cover photo' : 'Change cover')),
-              ),
-            ),
-          ]),
+    final s = S.of(context);
+    return Stack(fit: StackFit.expand, children: [
+      if (temple.imageUrl != null)
+        Image.network(temple.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const DecoratedBox(decoration: BoxDecoration(gradient: Palette.kumkumGradient)))
+      else
+        DecoratedBox(
+          decoration: const BoxDecoration(gradient: Palette.kumkumGradient),
+          child: Icon(Icons.temple_hindu, size: 72, color: Colors.white.withValues(alpha: 0.4)),
+        ),
+      const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, stops: [0, 0.45, 1], colors: [Color(0x66000000), Colors.transparent, Color(0x80000000)]),
         ),
       ),
-    );
+      Positioned(
+        right: 12,
+        bottom: 12,
+        child: FilledButton.tonalIcon(
+          style: FilledButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.9), foregroundColor: Palette.deep, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
+          onPressed: busy ? null : onChange,
+          icon: busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_camera_outlined, size: 18),
+          label: Text(busy ? s('uploading') : (temple.imageUrl == null ? s('add_cover') : s('change_cover'))),
+        ),
+      ),
+    ]);
   }
 }

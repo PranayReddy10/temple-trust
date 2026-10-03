@@ -134,6 +134,7 @@ class _AllTemplesScreenState extends State<AllTemplesScreen> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Card(
                           child: ListTile(
+                            leading: const IconBadge(Icons.temple_hindu),
                             title: Text(t.name),
                             subtitle: Text([t.deity, t.place].where((e) => e != null && e.isNotEmpty).join(' · ')),
                             trailing: t.statusLabel == null ? null : StatusChip.forStatus('${(t.raw['status'] as Map?)?['value']}', t.statusLabel!),

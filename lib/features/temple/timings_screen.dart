@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -46,6 +47,7 @@ class _TimingsScreenState extends State<TimingsScreen> {
         empty: 'No timings yet. Add when the temple opens for darshan.',
         itemBuilder: (context, t, reload) => Card(
           child: ListTile(
+            leading: const IconBadge(Icons.schedule, color: Palette.sky),
             title: Text('${t['window']}'),
             subtitle: Text([
               kinds[t['kind']] ?? t['kind'],

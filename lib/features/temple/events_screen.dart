@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/api_client.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'booking_detail_screen.dart';
 
@@ -54,8 +55,8 @@ class _EventsScreenState extends State<EventsScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               ListTile(
                 leading: e['image_url'] == null
-                    ? Icon(e['type'] == 'bhajan' ? Icons.music_note_outlined : Icons.celebration_outlined)
-                    : ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network('${e['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
+                    ? IconBadge(e['type'] == 'bhajan' ? Icons.music_note_outlined : Icons.celebration_outlined, color: e['type'] == 'bhajan' ? Palette.sky : const Color(0xFFD1476B))
+                    : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network('${e['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
                 title: Text('${e['title']}'),
                 subtitle: Text([
                   '${e['date_label']}',

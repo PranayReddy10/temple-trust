@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   http: ^1.2.2
   provider: ^6.1.2
   shared_preferences: ^2.3.2
@@ -30,3 +32,29 @@ flutter:
   assets:
     # Drawn by tool/brand/render.js.
     - assets/brand/logo.png
+  # The same faces as the devotee app, so the two feel like one family:
+  # a serif for headings, a sans for everything else, and the Indic faces
+  # the interface languages need.
+  fonts:
+    - family: NotoSerif
+      fonts:
+        - asset: assets/fonts/NotoSerif_400Regular.ttf
+        - asset: assets/fonts/NotoSerif_600SemiBold.ttf
+          weight: 600
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans_400Regular.ttf
+        - asset: assets/fonts/NotoSans_700Bold.ttf
+          weight: 700
+    - family: NotoSansDevanagari
+      fonts:
+        - asset: assets/fonts/NotoSansDevanagari_400Regular.ttf
+    - family: NotoSansTelugu
+      fonts:
+        - asset: assets/fonts/NotoSansTelugu_400Regular.ttf
+    - family: NotoSansTamil
+      fonts:
+        - asset: assets/fonts/NotoSansTamil_400Regular.ttf
+    - family: NotoSansKannada
+      fonts:
+        - asset: assets/fonts/NotoSansKannada_400Regular.ttf
