@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -185,6 +186,13 @@ class EventsQueueScreen extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${e['title']}', style: Theme.of(context).textTheme.titleMedium),
                   Text('${t['name']} · ${e['date_label']}'),
+                  // A devotee proposed it from the app, not the temple's team:
+                  // free, with "I'll join"; the temple is not asked first.
+                  if (e['raised_by_devotee'] == true)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: StatusChip('Raised by a devotee${e['raised_by'] != null ? ' · ${e['raised_by']}' : ''} · free', color: Palette.saffron, icon: Icons.music_note_outlined),
+                    ),
                   if (e['description'] != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${e['description']}')),
                   Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                     TextButton(
