@@ -453,7 +453,7 @@ class _Cover extends StatelessWidget {
     final s = S.of(context);
     return Stack(fit: StackFit.expand, children: [
       if (temple.imageUrl != null)
-        Image.network(temple.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const DecoratedBox(decoration: BoxDecoration(gradient: Palette.kumkumGradient)))
+        FittedPhoto(temple.imageUrl!)
       else
         DecoratedBox(
           decoration: const BoxDecoration(gradient: Palette.kumkumGradient),
