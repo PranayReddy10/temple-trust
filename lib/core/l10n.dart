@@ -7,6 +7,7 @@ import 'l10n/strings_admin.dart';
 import 'l10n/strings_money.dart';
 import 'l10n/strings_onboarding.dart';
 import 'l10n/strings_temple.dart';
+import 'l10n/strings_translate.dart';
 
 /// One interface language the app can show.
 class AppLanguage {
@@ -103,6 +104,7 @@ class S {
     kTempleStrings,
     kMoneyStrings,
     kAdminStrings,
+    kTranslateStrings,
   ];
 
   static Map<String, String>? _entry(String key) {

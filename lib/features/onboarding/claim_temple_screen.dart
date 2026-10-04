@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/live_location.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
@@ -47,9 +48,15 @@ class _ClaimTempleScreenState extends State<ClaimTempleScreen> {
       _error = null;
     });
     try {
-      final res = await context.read<Session>().api.get('claimable-temples', {'q': v.trim()});
+      final res = await context
+          .read<Session>()
+          .api
+          .get('claimable-temples', {'q': v.trim()});
       if (!mounted) return;
-      setState(() => _results = [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()]);
+      setState(() => _results = [
+            for (final r in res['data'] as List)
+              (r as Map).cast<String, dynamic>()
+          ]);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.details);
     } finally {
@@ -59,8 +66,9 @@ class _ClaimTempleScreenState extends State<ClaimTempleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Find your temple')),
+      appBar: AppBar(title: Text(s('ob_find_temple_title'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -70,10 +78,16 @@ class _ClaimTempleScreenState extends State<ClaimTempleScreen> {
             onChanged: _changed,
             textInputAction: TextInputAction.search,
             onSubmitted: _search,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Temple name, local name or town'),
+            decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: s('ob_search_hint')),
           ),
-          if (_loading) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-          if (_error != null) Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
+          if (_loading)
+            const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator())),
+          if (_error != null)
+            Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
           const SizedBox(height: 12),
           for (final t in _results)
             Padding(
@@ -81,13 +95,19 @@ class _ClaimTempleScreenState extends State<ClaimTempleScreen> {
               child: Card(
                 child: ListTile(
                   title: Text('${t['name']}'),
-                  subtitle: Text([t['deity'], t['city'], t['state']].where((e) => e != null).join(' · ')),
+                  subtitle: Text([t['deity'], t['city'], t['state']]
+                      .where((e) => e != null)
+                      .join(' · ')),
                   trailing: switch (t['claim_status']) {
-                    'approved' => const StatusChip('You manage this'),
-                    'pending' => StatusChip.forStatus('pending', 'Requested'),
+                    'approved' => StatusChip(s('ob_you_manage')),
+                    'pending' =>
+                      StatusChip.forStatus('pending', s('ob_requested')),
                     _ => const Icon(Icons.chevron_right),
                   },
-                  onTap: t['claim_status'] == 'approved' || t['claim_status'] == 'pending' ? null : () => _claim(t),
+                  onTap: t['claim_status'] == 'approved' ||
+                          t['claim_status'] == 'pending'
+                      ? null
+                      : () => _claim(t),
                 ),
               ),
             ),
@@ -98,14 +118,17 @@ class _ClaimTempleScreenState extends State<ClaimTempleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Not finding your temple?'),
+                    Text(s('ob_not_finding')),
                     const SizedBox(height: 8),
-                    const Text('Try its local name or the town. If it is not on the app yet, register it.'),
+                    Text(s('ob_not_finding_body')),
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RegisterTempleScreen())),
+                      onPressed: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterTempleScreen())),
                       icon: const Icon(Icons.add_location_alt_outlined),
-                      label: const Text('Register this temple'),
+                      label: Text(s('ob_register_this')),
                     ),
                   ],
                 ),
@@ -123,7 +146,7 @@ class _ClaimTempleScreenState extends State<ClaimTempleScreen> {
       builder: (_) => _ClaimSheet(temple: temple),
     );
     if (sent == true && mounted) {
-      showMessage(context, 'Request sent. We will confirm and let you in.');
+      showMessage(context, S.of(context)('ob_request_sent'));
       Navigator.pop(context);
     }
   }
@@ -153,7 +176,7 @@ class _ClaimSheetState extends State<_ClaimSheet> {
 
   Future<void> _send() async {
     if (_fix == null) {
-      showMessage(context, 'Stand at the temple and tap "Use my current location" first.');
+      showMessage(context, S.of(context)('ob_claim_need_location'));
       return;
     }
     setState(() {
@@ -162,7 +185,12 @@ class _ClaimSheetState extends State<_ClaimSheet> {
     });
     final session = context.read<Session>();
     try {
-      await session.api.post('claims', {'temple_id': widget.temple['id'], 'role': _role, 'note': _note.text.trim(), ..._fix!.toFields()});
+      await session.api.post('claims', {
+        'temple_id': widget.temple['id'],
+        'role': _role,
+        'note': _note.text.trim(),
+        ..._fix!.toFields()
+      });
       await session.refresh();
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -175,26 +203,34 @@ class _ClaimSheetState extends State<_ClaimSheet> {
   @override
   Widget build(BuildContext context) {
     final levels = context.watch<Session>().options.claimLevels;
+    final s = S.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Manage ${widget.temple['name']}', style: Theme.of(context).textTheme.titleLarge),
+            Text(s('ob_manage_name', {'name': widget.temple['name']}),
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             OptionField(
-              label: 'You are',
-              options: levels.isEmpty ? const [Option('owner', 'Owner — the trust or temple office'), Option('manager', 'Manager — day-to-day staff')] : levels,
+              label: s('ob_you_are'),
+              options: levels.isEmpty
+                  ? [
+                      Option('owner', s('ob_level_owner')),
+                      Option('manager', s('ob_level_manager'))
+                    ]
+                  : levels,
               value: _role,
               onChanged: (v) => setState(() => _role = '$v'),
             ),
             const SizedBox(height: 12),
             ApiTextField(
               controller: _note,
-              label: 'How are you connected to the temple?',
-              hint: 'e.g. Secretary of the temple trust since 2019; office phone 08743 232428',
+              label: s('ob_how_connected'),
+              hint: s('ob_how_connected_hint'),
               field: 'note',
               error: _error,
               maxLines: 4,
@@ -203,13 +239,23 @@ class _ClaimSheetState extends State<_ClaimSheet> {
             LiveLocationField(
               value: _fix,
               required: true,
-              error: _error?.field('latitude') ?? _error?.field('location_accuracy'),
+              error: _error?.field('latitude') ??
+                  _error?.field('location_accuracy'),
               onChanged: (f) => setState(() => _fix = f),
             ),
             const SizedBox(height: 12),
-            if (_error != null && _error!.field('note') == null && _error!.field('latitude') == null && _error!.field('location_accuracy') == null)
-              Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(_error!.details, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-            FilledButton(onPressed: _busy ? null : _send, child: Text(_busy ? 'Sending…' : 'Send request')),
+            if (_error != null &&
+                _error!.field('note') == null &&
+                _error!.field('latitude') == null &&
+                _error!.field('location_accuracy') == null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(_error!.details,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error))),
+            FilledButton(
+                onPressed: _busy ? null : _send,
+                child: Text(_busy ? s('ob_sending') : s('ob_send_request'))),
           ],
         ),
       ),

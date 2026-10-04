@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -63,10 +64,14 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
       _error = null;
     });
     try {
-      final res = await context.read<Session>().api.get('bookings/search', {'q': q});
+      final res =
+          await context.read<Session>().api.get('bookings/search', {'q': q});
       if (!mounted || _q.text.trim() != q) return;
       setState(() {
-        _results = [for (final r in (res['data'] as List? ?? const [])) (r as Map).cast<String, dynamic>()];
+        _results = [
+          for (final r in (res['data'] as List? ?? const []))
+            (r as Map).cast<String, dynamic>()
+        ];
         _searched = q;
       });
     } on ApiException catch (e) {
@@ -77,17 +82,19 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
   }
 
   Future<void> _open(Json b) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: b)));
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: b)));
     if (mounted) _search();
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final theme = Theme.of(context);
     final today = formatDate(DateTime.now());
     final results = _results;
     return Scaffold(
-      appBar: AppBar(title: const Text('Find a booking')),
+      appBar: AppBar(title: Text(s('find_booking'))),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -99,7 +106,7 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
             onSubmitted: (_) => _search(),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
-              hintText: 'Mobile number, booking reference or name',
+              hintText: s('mn_find_hint'),
               suffixIcon: _q.text.isEmpty
                   ? null
                   : IconButton(
@@ -115,7 +122,7 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'For a devotee who did not bring their phone. Ask for the number they booked with, or the reference on their booking message.',
+            s('mn_find_intro'),
             style: theme.textTheme.bodySmall,
           ),
         ),
@@ -128,7 +135,8 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
                   : results.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(24),
-                          child: Text('No booking at your temples matches "$_searched". Check the number, or try the name.', textAlign: TextAlign.center),
+                          child: Text(s('mn_find_no_match', {'q': _searched}),
+                              textAlign: TextAlign.center),
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -136,26 +144,37 @@ class _FindBookingScreenState extends State<FindBookingScreen> {
                           itemBuilder: (context, i) {
                             final b = results[i];
                             final status = (b['status'] as Map?) ?? const {};
-                            final isTicket = b['kind'] == 'event' || b['event'] is Map;
+                            final isTicket =
+                                b['kind'] == 'event' || b['event'] is Map;
                             final event = (b['event'] as Map?) ?? const {};
                             final puja = (b['puja'] as Map?) ?? const {};
-                            final what = isTicket ? event['title'] : puja['name'];
+                            final what =
+                                isTicket ? event['title'] : puja['name'];
                             final day = '${b['booked_for'] ?? ''}';
                             final slot = (b['slot'] as Map?)?['label'];
                             final expired = b['expired_at'] != null;
-                            final name = '${b['devotee_name'] ?? 'Devotee'}';
+                            final name =
+                                '${b['devotee_name'] ?? s('mn_devotee')}';
                             final people = (b['people'] as num?)?.toInt() ?? 1;
                             return Card(
                               child: ListTile(
-                                leading: InitialsAvatar(name, color: day == today ? theme.colorScheme.primary : Palette.stone),
-                                title: Text('$name · $people ${people == 1 ? 'person' : 'people'}'),
+                                leading: InitialsAvatar(name,
+                                    color: day == today
+                                        ? theme.colorScheme.primary
+                                        : Palette.stone),
+                                title: Text('$name · ${s.people(people)}'),
                                 subtitle: Text([
-                                  '${what ?? (isTicket ? 'Event' : 'Seva')}',
-                                  '${day == today ? 'Today' : day}${slot != null ? ' $slot' : ''}',
-                                  'Ref ${b['reference']}',
-                                  if (b['devotee_phone'] != null) '${b['devotee_phone']}',
+                                  '${what ?? (isTicket ? s('mn_event') : s('mn_seva'))}',
+                                  '${day == today ? s('today') : day}${slot != null ? ' $slot' : ''}',
+                                  s('mn_ref', {'ref': b['reference']}),
+                                  if (b['devotee_phone'] != null)
+                                    '${b['devotee_phone']}',
                                 ].join(' · ')),
-                                trailing: StatusChip.forStatus(expired ? 'expired' : '${status['value']}', expired ? 'Expired' : '${status['label'] ?? status['value']}'),
+                                trailing: StatusChip.forStatus(
+                                    expired ? 'expired' : '${status['value']}',
+                                    expired
+                                        ? s('mn_expired')
+                                        : '${status['label'] ?? status['value']}'),
                                 onTap: () => _open(b),
                               ),
                             );

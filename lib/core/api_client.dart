@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'l10n.dart';
+
 /// Errors the UI can name: a 404 reads differently from a lost connection.
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode, this.errors = const {}});
@@ -165,8 +167,7 @@ class ApiClient {
     } on ApiException {
       rethrow;
     } catch (_) {
-      throw const ApiException(
-          'Could not reach the server. Check the connection and try again.');
+      throw ApiException(S(language)('ob_no_connection'));
     }
     return _decode(res);
   }
@@ -195,7 +196,8 @@ class ApiClient {
       }
     }
     throw ApiException(
-      body['message']?.toString() ?? 'Request failed (${res.statusCode})',
+      body['message']?.toString() ??
+          S(language)('ob_request_failed', {'code': res.statusCode}),
       statusCode: res.statusCode,
       errors: errors,
     );

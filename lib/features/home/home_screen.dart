@@ -59,8 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 6),
           IconButton(
             tooltip: s('account'),
-            icon: account == null ? const Icon(Icons.account_circle_outlined) : InitialsAvatar(account.user.name, size: 32),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())),
+            icon: account == null
+                ? const Icon(Icons.account_circle_outlined)
+                : InitialsAvatar(account.user.name, size: 32),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AccountScreen())),
           ),
           const SizedBox(width: 8),
         ],
@@ -69,7 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ? null
           : FloatingActionButton.extended(
               backgroundColor: Palette.saffron,
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanScreen())),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ScanScreen())),
               icon: const Icon(Icons.qr_code_scanner),
               label: Text(s('scan')),
             ),
@@ -88,22 +92,34 @@ class _HomeScreenState extends State<HomeScreen> {
               SectionTitle(s('quick_actions')),
               _QuickActions(temples: temples),
               SectionTitle(s('your_temples')),
-              for (final t in temples) Padding(padding: const EdgeInsets.only(bottom: 12), child: _TempleCard(key: ValueKey('${t.id}-$_generation'), temple: t)),
+              for (final t in temples)
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _TempleCard(
+                        key: ValueKey('${t.id}-$_generation'), temple: t)),
             ],
             if ((account?.openClaims ?? const []).isNotEmpty) ...[
               SectionTitle(s('requests_to_manage')),
-              for (final c in account!.openClaims) Padding(padding: const EdgeInsets.only(bottom: 10), child: _ClaimTile(claim: c)),
+              for (final c in account!.openClaims)
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ClaimTile(claim: c)),
             ],
             if ((account?.registrations ?? const []).isNotEmpty) ...[
               SectionTitle(s('temples_registered')),
-              for (final r in account!.registrations) Padding(padding: const EdgeInsets.only(bottom: 10), child: _RegistrationTile(registration: r)),
+              for (final r in account!.registrations)
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _RegistrationTile(registration: r)),
             ],
             if (temples.isNotEmpty) ...[
               SectionTitle(s('another_temple')),
               const _AddTempleButtons(),
             ],
             const SizedBox(height: 24),
-            Center(child: Text(Brand.tagline, style: theme.textTheme.bodySmall)),
+            Center(
+                child: Text(s('ob_tagline', {'name': Brand.name}),
+                    style: theme.textTheme.bodySmall)),
           ],
         ),
       ),
@@ -126,11 +142,22 @@ class _Greeting extends StatelessWidget {
       padding: const EdgeInsets.only(top: 6),
       child: HeroPanel(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(today, style: const TextStyle(color: Colors.white70, fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          Text(today,
+              style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6)),
           const SizedBox(height: 6),
-          Text('${s('greeting')}, ${name.split(' ').first}', style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 26, fontWeight: FontWeight.w600, height: 1.15)),
+          Text('${s('greeting')}, ${name.split(' ').first}',
+              style: const TextStyle(
+                  fontFamily: TrustTheme.serif,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15)),
           const SizedBox(height: 6),
-          Text(s('home_subtitle'), style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
+          Text(s('home_subtitle'),
+              style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
         ]),
       ),
     );
@@ -146,21 +173,32 @@ class _ScanPanel extends StatelessWidget {
     final s = S.of(context);
     return HeroPanel(
       gradient: Palette.saffronGradient,
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanScreen())),
+      onTap: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const ScanScreen())),
       padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
       child: Row(children: [
         Container(
           width: 64,
           height: 64,
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.35))),
+          decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35))),
           child: const Icon(Icons.qr_code_scanner, size: 36),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s('scan_at_counter'), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 21, fontWeight: FontWeight.w600)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s('scan_at_counter'),
+                style: const TextStyle(
+                    fontFamily: TrustTheme.serif,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(s('scan_hint'), style: const TextStyle(color: Colors.white, fontSize: 12.5, height: 1.3)),
+            Text(s('scan_hint'),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 12.5, height: 1.3)),
           ]),
         ),
         const SizedBox(width: 8),
@@ -180,21 +218,43 @@ class _QuickActions extends StatelessWidget {
     final s = S.of(context);
     final one = temples.length == 1 ? temples.first : null;
     final items = <(IconData, String, Color, Widget Function())>[
-      (Icons.person_search_outlined, s('find_booking'), Palette.sky, () => const FindBookingScreen()),
-      if (one != null) (Icons.confirmation_number_outlined, s('bookings_today'), Palette.tulsi, () => BookingsScreen(templeId: one.id, todayOnly: true)),
-      if (one != null) (Icons.account_balance_wallet_outlined, s('finance'), Palette.kumkum, () => FinanceScreen(templeId: one.id, title: one.name)),
+      (
+        Icons.person_search_outlined,
+        s('find_booking'),
+        Palette.sky,
+        () => const FindBookingScreen()
+      ),
+      if (one != null)
+        (
+          Icons.confirmation_number_outlined,
+          s('bookings_today'),
+          Palette.tulsi,
+          () => BookingsScreen(templeId: one.id, todayOnly: true)
+        ),
+      if (one != null)
+        (
+          Icons.account_balance_wallet_outlined,
+          s('finance'),
+          Palette.kumkum,
+          () => FinanceScreen(templeId: one.id, title: one.name)
+        ),
     ];
     return Row(children: [
       for (final (i, item) in items.indexed) ...[
         if (i > 0) const SizedBox(width: 10),
         Expanded(
           child: SoftCard(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.$4())),
+            onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => item.$4())),
             padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               IconBadge(item.$1, color: item.$3, size: 36),
               const SizedBox(height: 10),
-              Text(item.$2, style: Theme.of(context).textTheme.labelLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(item.$2,
+                  style: Theme.of(context).textTheme.labelLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ]),
           ),
         ),
@@ -242,12 +302,14 @@ class _AddTempleButtons extends StatelessWidget {
       runSpacing: 10,
       children: [
         FilledButton.icon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimTempleScreen())),
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const ClaimTempleScreen())),
           icon: const Icon(Icons.search),
           label: Text(s('find_my_temple')),
         ),
         OutlinedButton.icon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterTempleScreen())),
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const RegisterTempleScreen())),
           icon: const Icon(Icons.add_location_alt_outlined),
           label: Text(s('register_missing')),
         ),
@@ -270,8 +332,10 @@ class _TempleCardState extends State<_TempleCard> {
   late final Future<Map<String, dynamic>> _stats = _load();
 
   Future<Map<String, dynamic>> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.temple.id}');
-    return TrustTemple.fromJson((res['data'] as Map).cast<String, dynamic>()).stats;
+    final res =
+        await context.read<Session>().api.get('temples/${widget.temple.id}');
+    return TrustTemple.fromJson((res['data'] as Map).cast<String, dynamic>())
+        .stats;
   }
 
   @override
@@ -281,33 +345,57 @@ class _TempleCardState extends State<_TempleCard> {
     final t = widget.temple;
     return SoftCard(
       padding: EdgeInsets.zero,
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TempleDashboardScreen(templeId: t.id, title: t.name))),
+      onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) =>
+                  TempleDashboardScreen(templeId: t.id, title: t.name))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         AspectRatio(
           aspectRatio: 2.2,
           child: Stack(fit: StackFit.expand, children: [
             if (t.imageUrl != null)
-              Image.network(t.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(theme))
+              Image.network(t.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _placeholder(theme))
             else
               _placeholder(theme),
             const DecoratedBox(
               decoration: BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0x99000000)]),
+                gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Color(0x99000000)]),
               ),
             ),
             Positioned(
               left: 16,
               right: 16,
               bottom: 12,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(t.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontFamily: TrustTheme.serif, fontSize: 20, fontWeight: FontWeight.w600, height: 1.15)),
-                if (t.place.isNotEmpty)
-                  Row(children: [
-                    const Icon(Icons.place_outlined, size: 14, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Expanded(child: Text(t.place, style: const TextStyle(color: Colors.white70, fontSize: 12.5), overflow: TextOverflow.ellipsis)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: TrustTheme.serif,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            height: 1.15)),
+                    if (t.place.isNotEmpty)
+                      Row(children: [
+                        const Icon(Icons.place_outlined,
+                            size: 14, color: Colors.white70),
+                        const SizedBox(width: 4),
+                        Expanded(
+                            child: Text(t.place,
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 12.5),
+                                overflow: TextOverflow.ellipsis)),
+                      ]),
                   ]),
-              ]),
             ),
             Positioned(
               top: 10,
@@ -332,19 +420,30 @@ class _TempleCardState extends State<_TempleCard> {
                 Expanded(
                   child: _Today(
                     label: s('todays_sevas'),
-                    value: st == null ? null : rupeesShort(st['amount_today_paise']),
-                    caption: st == null ? null : '${s('n_bookings', {'n': n('bookings_today')})} · ${s('received')} ${n('received_today')}',
+                    value: st == null
+                        ? null
+                        : rupeesShort(st['amount_today_paise']),
+                    caption: st == null
+                        ? null
+                        : '${s('n_bookings', {
+                                'n': n('bookings_today')
+                              })} · ${s('received')} ${n('received_today')}',
                   ),
                 ),
                 Expanded(
                   child: _Today(
                     label: s('hundi_today'),
-                    value: st == null ? null : rupeesShort(st['hundi_today_paise']),
-                    caption: st == null ? null : s('n_gifts', {'n': n('hundi_today_count')}),
+                    value: st == null
+                        ? null
+                        : rupeesShort(st['hundi_today_paise']),
+                    caption: st == null
+                        ? null
+                        : s('n_gifts', {'n': n('hundi_today_count')}),
                     color: Palette.gold,
                   ),
                 ),
-                Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                Icon(Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant),
               ]);
             },
           ),
@@ -355,7 +454,8 @@ class _TempleCardState extends State<_TempleCard> {
 
   Widget _placeholder(ThemeData theme) => Container(
         decoration: const BoxDecoration(gradient: Palette.kumkumGradient),
-        child: Icon(Icons.temple_hindu, size: 48, color: Colors.white.withValues(alpha: 0.45)),
+        child: Icon(Icons.temple_hindu,
+            size: 48, color: Colors.white.withValues(alpha: 0.45)),
       );
 }
 
@@ -371,12 +471,30 @@ class _Today extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+      Text(label,
+          style: theme.textTheme.bodySmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
       const SizedBox(height: 2),
       value == null
-          ? Container(width: 64, height: 18, margin: const EdgeInsets.symmetric(vertical: 4), decoration: BoxDecoration(color: theme.colorScheme.outlineVariant, borderRadius: BorderRadius.circular(6)))
-          : FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value!, style: theme.textTheme.titleLarge?.copyWith(color: color ?? theme.colorScheme.primary))),
-      if (caption != null) Text(caption!, style: theme.textTheme.bodySmall?.copyWith(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ? Container(
+              width: 64,
+              height: 18,
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(6)))
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value!,
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(color: color ?? theme.colorScheme.primary))),
+      if (caption != null)
+        Text(caption!,
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
     ]);
   }
 }
@@ -390,8 +508,13 @@ class _GlassChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.4))),
-      child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.4))),
+      child: Text(label,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -412,10 +535,11 @@ class _ClaimTile extends StatelessWidget {
     return ActionTile(
       icon: Icons.how_to_reg_outlined,
       color: claim.status == 'rejected' ? const Color(0xFFB3261E) : Palette.sky,
-      title: claim.templeName ?? 'Temple',
+      title: claim.templeName ?? s('ob_temple'),
       subtitle: [
         if (claim.templeCity != null) claim.templeCity!,
-        if (claim.rejectionReason != null) '${s('reason')}: ${claim.rejectionReason}',
+        if (claim.rejectionReason != null)
+          '${s('reason')}: ${claim.rejectionReason}',
       ].join(' · '),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         StatusChip.forStatus(claim.status, label),
@@ -427,13 +551,16 @@ class _ClaimTile extends StatelessWidget {
           ),
       ]),
       onTap: () {
-        if (claim.status == 'rejected') Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimTempleScreen()));
+        if (claim.status == 'rejected')
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const ClaimTempleScreen()));
       },
     );
   }
 
   Future<void> _withdraw(BuildContext context) async {
-    if (!await confirm(context, S.of(context)('withdraw_q'), action: S.of(context)('withdraw'))) return;
+    if (!await confirm(context, S.of(context)('withdraw_q'),
+        action: S.of(context)('withdraw'))) return;
     if (!context.mounted) return;
     final session = context.read<Session>();
     try {
@@ -460,9 +587,12 @@ class _RegistrationTile extends StatelessWidget {
       subtitle: [
         if (registration.city != null) registration.city!,
         if (registration.status == 'approved') s('listed_access_pending'),
-        if (registration.reviewNote != null && registration.reviewNote!.isNotEmpty) registration.reviewNote!,
+        if (registration.reviewNote != null &&
+            registration.reviewNote!.isNotEmpty)
+          registration.reviewNote!,
       ].join(' · '),
-      trailing: StatusChip.forStatus(registration.status, registration.statusLabel),
+      trailing:
+          StatusChip.forStatus(registration.status, registration.statusLabel),
       onTap: () {},
     );
   }

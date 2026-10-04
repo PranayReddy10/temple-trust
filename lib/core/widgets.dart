@@ -17,19 +17,23 @@ void showError(BuildContext context, Object error) {
       context,
       error is ApiException
           ? error.details
-          : 'Something went wrong. Please try again.');
+          : S.of(context)('ob_something_wrong'));
 }
 
 Future<bool> confirm(BuildContext context, String title,
-    {String? body, String action = 'Delete'}) async {
+    {String? body, String? action}) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
       title: Text(title),
       content: body == null ? null : Text(body),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(S.of(c)('cancel'))),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(action)),
+        TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(S.of(c)('cancel'))),
+        FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(action ?? S.of(c)('ob_delete'))),
       ],
     ),
   );
@@ -88,8 +92,14 @@ class AsyncListState<T> extends State<AsyncList<T>> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (widget.header != null) widget.header!,
-              if (items.isEmpty) EmptyState(icon: widget.emptyIcon ?? Icons.inbox_outlined, text: widget.empty),
-              for (final item in items) Padding(padding: const EdgeInsets.only(bottom: 10), child: widget.itemBuilder(context, item, reload)),
+              if (items.isEmpty)
+                EmptyState(
+                    icon: widget.emptyIcon ?? Icons.inbox_outlined,
+                    text: widget.empty),
+              for (final item in items)
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: widget.itemBuilder(context, item, reload)),
             ],
           );
         },
@@ -116,14 +126,22 @@ class ErrorView extends StatelessWidget {
           child: Container(
             width: 72,
             height: 72,
-            decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: Icon(Icons.cloud_off_outlined, size: 34, color: theme.colorScheme.primary),
+            decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle),
+            child: Icon(Icons.cloud_off_outlined,
+                size: 34, color: theme.colorScheme.primary),
           ),
         ),
         const SizedBox(height: 18),
-        Text(error is ApiException ? (error as ApiException).details : '$error', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+        Text(error is ApiException ? (error as ApiException).details : '$error',
+            textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
         const SizedBox(height: 18),
-        Center(child: OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(S.of(context)('try_again')))),
+        Center(
+            child: OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: Text(S.of(context)('try_again')))),
       ],
     );
   }
@@ -131,7 +149,8 @@ class ErrorView extends StatelessWidget {
 
 /// A quiet "nothing here yet" with an icon, for lists and sections.
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.icon, required this.text, this.action});
+  const EmptyState(
+      {super.key, required this.icon, required this.text, this.action});
 
   final IconData icon;
   final String text;
@@ -146,11 +165,18 @@ class EmptyState extends StatelessWidget {
         Container(
           width: 64,
           height: 64,
-          decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.08), shape: BoxShape.circle),
-          child: Icon(icon, size: 30, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
+          decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle),
+          child: Icon(icon,
+              size: 30,
+              color: theme.colorScheme.primary.withValues(alpha: 0.8)),
         ),
         const SizedBox(height: 14),
-        Text(text, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(text,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         if (action != null) ...[const SizedBox(height: 14), action!],
       ]),
     );
@@ -167,8 +193,16 @@ class StatusChip extends StatelessWidget {
   factory StatusChip.forStatus(String status, String label) {
     final c = switch (status) {
       'approved' || 'published' || 'confirmed' || 'verified' => Palette.tulsi,
-      'pending' || 'pending_review' || 'pending_payment' || 'in_review' => const Color(0xFFB08A10),
-      'rejected' || 'cancelled' || 'refunded' || 'duplicate' => const Color(0xFFB3261E),
+      'pending' ||
+      'pending_review' ||
+      'pending_payment' ||
+      'in_review' =>
+        const Color(0xFFB08A10),
+      'rejected' ||
+      'cancelled' ||
+      'refunded' ||
+      'duplicate' =>
+        const Color(0xFFB3261E),
       'expired' => const Color(0xFF8D6E63),
       _ => Palette.sky,
     };
@@ -180,10 +214,21 @@ class StatusChip extends StatelessWidget {
     final c = color ?? Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: c.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(20), border: Border.all(color: c.withValues(alpha: 0.25))),
+      decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.13),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: c.withValues(alpha: 0.25))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (icon != null) ...[Icon(icon, size: 13, color: c), const SizedBox(width: 4)],
-        Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12, height: 1.3)),
+        if (icon != null) ...[
+          Icon(icon, size: 13, color: c),
+          const SizedBox(width: 4)
+        ],
+        Text(label,
+            style: TextStyle(
+                color: c,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                height: 1.3)),
       ]),
     );
   }
@@ -206,12 +251,20 @@ class SectionTitle extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(width: 4, height: 18, decoration: BoxDecoration(color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(2))),
+          Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(text, style: theme.textTheme.titleLarge?.copyWith(fontSize: 18)),
-              if (subtitle != null) Text(subtitle!, style: theme.textTheme.bodySmall),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(text,
+                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 18)),
+              if (subtitle != null)
+                Text(subtitle!, style: theme.textTheme.bodySmall),
             ]),
           ),
           if (trailing != null) trailing!,
@@ -233,7 +286,10 @@ class Eyebrow extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       text.toUpperCase(),
-      style: theme.textTheme.labelSmall?.copyWith(color: color ?? theme.colorScheme.onSurfaceVariant, letterSpacing: 1.4, fontSize: 10.5),
+      style: theme.textTheme.labelSmall?.copyWith(
+          color: color ?? theme.colorScheme.onSurfaceVariant,
+          letterSpacing: 1.4,
+          fontSize: 10.5),
     );
   }
 }
@@ -241,7 +297,13 @@ class Eyebrow extends StatelessWidget {
 /// A rounded panel on a gradient, for the figures that matter most. White
 /// text; a faint ring in the corner lifts it off the page.
 class HeroPanel extends StatelessWidget {
-  const HeroPanel({super.key, required this.child, this.gradient = Palette.kumkumGradient, this.onTap, this.padding = const EdgeInsets.all(20), this.ornament = true});
+  const HeroPanel(
+      {super.key,
+      required this.child,
+      this.gradient = Palette.kumkumGradient,
+      this.onTap,
+      this.padding = const EdgeInsets.all(20),
+      this.ornament = true});
 
   final Widget child;
   final Gradient gradient;
@@ -253,7 +315,9 @@ class HeroPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = TrustStyle.of(context);
     return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(TrustTheme.radius + 2), boxShadow: style.cardShadow),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(TrustTheme.radius + 2),
+          boxShadow: style.cardShadow),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(TrustTheme.radius + 2),
         child: Material(
@@ -271,7 +335,9 @@ class HeroPanel extends StatelessWidget {
                   padding: padding,
                   child: DefaultTextStyle.merge(
                     style: const TextStyle(color: Colors.white),
-                    child: IconTheme.merge(data: const IconThemeData(color: Colors.white), child: child),
+                    child: IconTheme.merge(
+                        data: const IconThemeData(color: Colors.white),
+                        child: child),
                   ),
                 ),
               ]),
@@ -285,13 +351,22 @@ class HeroPanel extends StatelessWidget {
   Widget _ring(double size) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 14)),
+        decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12), width: 14)),
       );
 }
 
 /// A card with the soft shadow instead of the outline; the content cards.
 class SoftCard extends StatelessWidget {
-  const SoftCard({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(16), this.color, this.border});
+  const SoftCard(
+      {super.key,
+      required this.child,
+      this.onTap,
+      this.padding = const EdgeInsets.all(16),
+      this.color,
+      this.border});
 
   final Widget child;
   final VoidCallback? onTap;
@@ -304,12 +379,18 @@ class SoftCard extends StatelessWidget {
     final theme = Theme.of(context);
     final style = TrustStyle.of(context);
     return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(TrustTheme.radius), boxShadow: style.cardShadow),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(TrustTheme.radius),
+          boxShadow: style.cardShadow),
       child: Material(
         color: color ?? theme.colorScheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TrustTheme.radius), side: BorderSide(color: border ?? theme.colorScheme.outlineVariant)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(TrustTheme.radius),
+            side:
+                BorderSide(color: border ?? theme.colorScheme.outlineVariant)),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
+        child: InkWell(
+            onTap: onTap, child: Padding(padding: padding, child: child)),
       ),
     );
   }
@@ -317,7 +398,14 @@ class SoftCard extends StatelessWidget {
 
 /// A number with its label and an icon in a tinted square; the stat grids.
 class MetricTile extends StatelessWidget {
-  const MetricTile({super.key, required this.label, required this.value, required this.icon, this.onTap, this.color, this.caption});
+  const MetricTile(
+      {super.key,
+      required this.label,
+      required this.value,
+      required this.icon,
+      this.onTap,
+      this.color,
+      this.caption});
 
   final String label;
   final String value;
@@ -340,12 +428,28 @@ class MetricTile extends StatelessWidget {
           Row(children: [
             IconBadge(icon, color: c, size: 32),
             const Spacer(),
-            if (onTap != null) Icon(Icons.arrow_outward, size: 14, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+            if (onTap != null)
+              Icon(Icons.arrow_outward,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.6)),
           ]),
           const SizedBox(height: 10),
-          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 22))),
-          Text(label, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-          if (caption != null) Text(caption!, style: theme.textTheme.bodySmall?.copyWith(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+          FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  style:
+                      theme.textTheme.headlineSmall?.copyWith(fontSize: 22))),
+          Text(label,
+              style: theme.textTheme.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          if (caption != null)
+            Text(caption!,
+                style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -354,7 +458,8 @@ class MetricTile extends StatelessWidget {
 
 /// An icon on a tinted rounded square.
 class IconBadge extends StatelessWidget {
-  const IconBadge(this.icon, {super.key, this.color, this.size = 40, this.filled = false});
+  const IconBadge(this.icon,
+      {super.key, this.color, this.size = 40, this.filled = false});
 
   final IconData icon;
   final Color? color;
@@ -367,7 +472,9 @@ class IconBadge extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: filled ? c : c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(size * 0.3)),
+      decoration: BoxDecoration(
+          color: filled ? c : c.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(size * 0.3)),
       child: Icon(icon, size: size * 0.52, color: filled ? Colors.white : c),
     );
   }
@@ -376,7 +483,15 @@ class IconBadge extends StatelessWidget {
 /// A row that opens a screen: icon badge, title, subtitle, chevron. The
 /// management lists on the dashboard and the admin home.
 class ActionTile extends StatelessWidget {
-  const ActionTile({super.key, required this.icon, required this.title, this.subtitle, required this.onTap, this.color, this.badge, this.trailing});
+  const ActionTile(
+      {super.key,
+      required this.icon,
+      required this.title,
+      this.subtitle,
+      required this.onTap,
+      this.color,
+      this.badge,
+      this.trailing});
 
   final IconData icon;
   final String title;
@@ -398,14 +513,26 @@ class ActionTile extends StatelessWidget {
           IconBadge(icon, color: color),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: theme.textTheme.titleMedium),
-              if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(subtitle!, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis)),
+              if (subtitle != null)
+                Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(subtitle!,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis)),
             ]),
           ),
           const SizedBox(width: 8),
-          if (badge != null) ...[StatusChip(badge!, color: color), const SizedBox(width: 4)],
-          trailing ?? Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+          if (badge != null) ...[
+            StatusChip(badge!, color: color),
+            const SizedBox(width: 4)
+          ],
+          trailing ??
+              Icon(Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant),
         ]),
       ),
     );
@@ -414,7 +541,14 @@ class ActionTile extends StatelessWidget {
 
 /// A notice with an icon: what needs doing, or what changed.
 class InfoBanner extends StatelessWidget {
-  const InfoBanner({super.key, required this.icon, required this.title, this.body, this.onTap, this.color, this.action});
+  const InfoBanner(
+      {super.key,
+      required this.icon,
+      required this.title,
+      this.body,
+      this.onTap,
+      this.color,
+      this.action});
 
   final IconData icon;
   final String title;
@@ -430,8 +564,11 @@ class InfoBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: c.withValues(alpha: theme.brightness == Brightness.dark ? 0.18 : 0.1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TrustTheme.radius), side: BorderSide(color: c.withValues(alpha: 0.3))),
+        color: c.withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.18 : 0.1),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(TrustTheme.radius),
+            side: BorderSide(color: c.withValues(alpha: 0.3))),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -441,11 +578,22 @@ class InfoBanner extends StatelessWidget {
               Icon(icon, color: c, size: 24),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: theme.textTheme.titleMedium?.copyWith(color: c)),
-                  if (body != null) Padding(padding: const EdgeInsets.only(top: 3), child: Text(body!, style: theme.textTheme.bodySmall)),
-                  if (action != null) Padding(padding: const EdgeInsets.only(top: 8), child: action!),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style:
+                              theme.textTheme.titleMedium?.copyWith(color: c)),
+                      if (body != null)
+                        Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child:
+                                Text(body!, style: theme.textTheme.bodySmall)),
+                      if (action != null)
+                        Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: action!),
+                    ]),
               ),
               if (onTap != null) Icon(Icons.chevron_right, color: c),
             ]),
@@ -458,7 +606,8 @@ class InfoBanner extends StatelessWidget {
 
 /// A label on the left and its value on the right; detail screens.
 class KeyValueRow extends StatelessWidget {
-  const KeyValueRow(this.label, this.value, {super.key, this.emphasis = false, this.valueColor});
+  const KeyValueRow(this.label, this.value,
+      {super.key, this.emphasis = false, this.valueColor});
 
   final String label;
   final String value;
@@ -478,7 +627,12 @@ class KeyValueRow extends StatelessWidget {
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: (emphasis ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium)?.copyWith(color: valueColor, fontWeight: emphasis ? FontWeight.w700 : FontWeight.w600),
+            style: (emphasis
+                    ? theme.textTheme.titleMedium
+                    : theme.textTheme.bodyMedium)
+                ?.copyWith(
+                    color: valueColor,
+                    fontWeight: emphasis ? FontWeight.w700 : FontWeight.w600),
           ),
         ),
       ]),
@@ -488,7 +642,13 @@ class KeyValueRow extends StatelessWidget {
 
 /// One line of a money breakdown: what, how many, how much.
 class ReportLine extends StatelessWidget {
-  const ReportLine({super.key, required this.label, this.counts, required this.amount, this.color, this.bold = false});
+  const ReportLine(
+      {super.key,
+      required this.label,
+      this.counts,
+      required this.amount,
+      this.color,
+      this.bold = false});
 
   final String label;
   final String? counts;
@@ -502,10 +662,30 @@ class ReportLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
-        if (color != null) ...[Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), const SizedBox(width: 8)],
-        Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: bold ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium)),
-        if (counts != null) ...[Text(counts!, style: theme.textTheme.bodySmall), const SizedBox(width: 12)],
-        Text(amount, style: (bold ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium)?.copyWith(fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
+        if (color != null) ...[
+          Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 8)
+        ],
+        Expanded(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis,
+                style: bold
+                    ? theme.textTheme.titleMedium
+                    : theme.textTheme.bodyMedium)),
+        if (counts != null) ...[
+          Text(counts!, style: theme.textTheme.bodySmall),
+          const SizedBox(width: 12)
+        ],
+        Text(amount,
+            style: (bold
+                    ? theme.textTheme.titleMedium
+                    : theme.textTheme.bodyMedium)
+                ?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()])),
       ]),
     );
   }
@@ -523,7 +703,7 @@ class SendButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Tooltip(
-      message: 'Send',
+      message: S.of(context)('ob_send'),
       child: Material(
         color: scheme.primary,
         shape: const CircleBorder(),
@@ -535,7 +715,14 @@ class SendButton extends StatelessWidget {
           child: SizedBox(
             width: 50,
             height: 50,
-            child: Center(child: busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.send_rounded, color: Colors.white, size: 24)),
+            child: Center(
+                child: busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 24)),
           ),
         ),
       ),
@@ -554,14 +741,27 @@ class InitialsAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = color ?? Theme.of(context).colorScheme.primary;
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-    final initials = parts.isEmpty ? '?' : parts.take(2).map((p) => p.characters.first.toUpperCase()).join();
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final initials = parts.isEmpty
+        ? '?'
+        : parts.take(2).map((p) => p.characters.first.toUpperCase()).join();
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(gradient: LinearGradient(colors: [c, c.withValues(alpha: 0.7)], begin: Alignment.topLeft, end: Alignment.bottomRight), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: [c, c.withValues(alpha: 0.7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight),
+          shape: BoxShape.circle),
       alignment: Alignment.center,
-      child: Text(initials, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.38, fontFamily: TrustTheme.serif)),
+      child: Text(initials,
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: size * 0.38,
+              fontFamily: TrustTheme.serif)),
     );
   }
 }
@@ -652,7 +852,9 @@ class ApiTextField extends StatelessWidget {
           errorMaxLines: 3,
         ),
         validator: required
-            ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
+            ? (v) => (v == null || v.trim().isEmpty)
+                ? S.of(context)('ob_required')
+                : null
             : null,
       ),
     );
@@ -710,15 +912,6 @@ String formatDate(DateTime d) =>
 const kWeek = [1, 2, 3, 4, 5, 6, 0];
 const kWeekdays = [1, 2, 3, 4, 5];
 const kWeekend = [6, 0];
-const _dayShort = {
-  0: 'Sun',
-  1: 'Mon',
-  2: 'Tue',
-  3: 'Wed',
-  4: 'Thu',
-  5: 'Fri',
-  6: 'Sat'
-};
 
 /// Which days a timing holds on: every day, Mon–Fri, Sat & Sun, or any
 /// days picked. An empty list is every day.
@@ -734,24 +927,25 @@ class DaysPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     final sorted = [
       for (final d in kWeek)
         if (value.contains(d)) d
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Days', style: theme.textTheme.labelLarge),
+      Text(s('ob_days'), style: theme.textTheme.labelLarge),
       const SizedBox(height: 6),
       Wrap(spacing: 8, runSpacing: 4, children: [
         ChoiceChip(
-            label: const Text('Every day'),
+            label: Text(s('ob_every_day')),
             selected: value.isEmpty,
             onSelected: (_) => onChanged(const [])),
         ChoiceChip(
-            label: const Text('Mon–Fri'),
+            label: Text(s('ob_mon_fri')),
             selected: _same(value, kWeekdays),
             onSelected: (_) => onChanged(kWeekdays)),
         ChoiceChip(
-            label: const Text('Sat & Sun'),
+            label: Text(s('ob_sat_sun')),
             selected: _same(value, kWeekend),
             onSelected: (_) => onChanged(kWeekend)),
       ]),
@@ -759,7 +953,7 @@ class DaysPicker extends StatelessWidget {
       Wrap(spacing: 6, runSpacing: 4, children: [
         for (final d in kWeek)
           FilterChip(
-            label: Text(_dayShort[d]!),
+            label: Text(s('ob_day_$d')),
             selected: value.contains(d),
             showCheckmark: false,
             visualDensity: VisualDensity.compact,
@@ -778,9 +972,7 @@ class DaysPicker extends StatelessWidget {
       ]),
       const SizedBox(height: 4),
       Text(
-        value.isEmpty
-            ? 'Every day.'
-            : 'Only on these days. On them it replaces the every-day timing with the same kind and label.',
+        value.isEmpty ? s('ob_every_day_note') : s('ob_only_days_note'),
         style: theme.textTheme.bodySmall,
       ),
     ]);
@@ -828,7 +1020,13 @@ class TimeField extends StatelessWidget {
 
 /// A tappable row that opens a date picker.
 class DateField extends StatelessWidget {
-  const DateField({super.key, required this.label, required this.value, required this.onChanged, this.clearable = false, this.emptyLabel});
+  const DateField(
+      {super.key,
+      required this.label,
+      required this.value,
+      required this.onChanged,
+      this.clearable = false,
+      this.emptyLabel});
 
   final String label;
   final DateTime? value;
@@ -876,7 +1074,8 @@ String rupees(dynamic paise) {
 String rupeesShort(dynamic paise) {
   final p = (paise as num?)?.toInt() ?? 0;
   if (p % 100 != 0) return rupees(p);
-  return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0).format(p ~/ 100);
+  return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0)
+      .format(p ~/ 100);
 }
 
 /// A figure with its label, for money and counts on the finance screens.
@@ -903,10 +1102,19 @@ class Figure extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text(
             value,
-            style: (emphasis ? theme.textTheme.headlineSmall : theme.textTheme.titleMedium)?.copyWith(color: color, fontWeight: emphasis ? FontWeight.w600 : FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()]),
+            style: (emphasis
+                    ? theme.textTheme.headlineSmall
+                    : theme.textTheme.titleMedium)
+                ?.copyWith(
+                    color: color,
+                    fontWeight: emphasis ? FontWeight.w600 : FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ),
-        if (caption != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(caption!, style: theme.textTheme.bodySmall)),
+        if (caption != null)
+          Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(caption!, style: theme.textTheme.bodySmall)),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
+import 'l10n.dart';
 import 'theme.dart';
 
 /// The shape every temple photo is shown in: 4:3, on the devotee app's home
@@ -25,10 +26,15 @@ class CroppedPhoto {
 
 /// Opens the cropper for a picked photo and returns the 4:3 JPEG, or null
 /// when the team backs out.
-Future<CroppedPhoto?> cropPhoto(BuildContext context, XFile file, {String? title}) async {
+Future<CroppedPhoto?> cropPhoto(BuildContext context, XFile file,
+    {String? title}) async {
   final bytes = await file.readAsBytes();
   if (!context.mounted) return null;
-  final out = await Navigator.push<Uint8List>(context, MaterialPageRoute(fullscreenDialog: true, builder: (_) => CropScreen(bytes: bytes, title: title)));
+  final out = await Navigator.push<Uint8List>(
+      context,
+      MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => CropScreen(bytes: bytes, title: title)));
   if (out == null) return null;
   final base = file.name.replaceAll(RegExp(r'\.[A-Za-z0-9]+$'), '');
   return CroppedPhoto(bytes: out, filename: '$base.jpg');
@@ -38,10 +44,14 @@ Future<CroppedPhoto?> cropPhoto(BuildContext context, XFile file, {String? title
 /// workable size, so the cropper has true pixel dimensions to go by.
 Future<_Prepared> _prepare(Uint8List bytes) async {
   final decoded = img.decodeImage(bytes);
-  if (decoded == null) throw const FormatException('Not a photo the app can read.');
+  if (decoded == null)
+    throw const FormatException('Not a photo the app can read.');
   var image = img.bakeOrientation(decoded);
-  if (image.width > 2400) image = img.copyResize(image, width: 2400, interpolation: img.Interpolation.linear);
-  return _Prepared(Uint8List.fromList(img.encodeJpg(image, quality: 92)), image.width, image.height);
+  if (image.width > 2400)
+    image = img.copyResize(image,
+        width: 2400, interpolation: img.Interpolation.linear);
+  return _Prepared(Uint8List.fromList(img.encodeJpg(image, quality: 92)),
+      image.width, image.height);
 }
 
 class _Prepared {
@@ -56,9 +66,13 @@ class _Prepared {
 /// [photoMaxWidth], and encodes the JPEG that is uploaded.
 Future<Uint8List> _crop(_CropJob job) async {
   final decoded = img.decodeImage(job.bytes);
-  if (decoded == null) throw const FormatException('Not a photo the app can read.');
-  var image = img.copyCrop(decoded, x: job.x, y: job.y, width: job.width, height: job.height);
-  if (image.width > photoMaxWidth) image = img.copyResize(image, width: photoMaxWidth, interpolation: img.Interpolation.linear);
+  if (decoded == null)
+    throw const FormatException('Not a photo the app can read.');
+  var image = img.copyCrop(decoded,
+      x: job.x, y: job.y, width: job.width, height: job.height);
+  if (image.width > photoMaxWidth)
+    image = img.copyResize(image,
+        width: photoMaxWidth, interpolation: img.Interpolation.linear);
   return Uint8List.fromList(img.encodeJpg(image, quality: 88));
 }
 
@@ -101,7 +115,8 @@ class _CropScreenState extends State<CropScreen> {
       // The viewport's corners, back in the photo's own pixels.
       final inverse = Matrix4.inverted(_controller.value);
       final tl = MatrixUtils.transformPoint(inverse, Offset.zero);
-      final br = MatrixUtils.transformPoint(inverse, Offset(frame.width, frame.height));
+      final br = MatrixUtils.transformPoint(
+          inverse, Offset(frame.width, frame.height));
       final x = (tl.dx / base).round().clamp(0, p.width - 1);
       final y = (tl.dy / base).round().clamp(0, p.height - 1);
       final w = ((br.dx - tl.dx) / base).round().clamp(1, p.width - x);
@@ -111,7 +126,10 @@ class _CropScreenState extends State<CropScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not crop this photo: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(S.of(context)('ob_crop_failed', {
+          'error': e is FormatException ? S.of(context)('ob_not_a_photo') : e
+        }))));
       }
     }
   }
@@ -119,28 +137,40 @@ class _CropScreenState extends State<CropScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     return Scaffold(
       backgroundColor: Palette.ebony,
       appBar: AppBar(
         backgroundColor: Palette.ebony,
         foregroundColor: Colors.white,
-        title: Text(widget.title ?? 'Crop to 4:3'),
+        title: Text(widget.title ?? s('ob_crop_title')),
       ),
       body: FutureBuilder<_Prepared>(
         future: _prepared,
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('${snap.error}', style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center)));
+            return Center(
+                child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                        snap.error is FormatException
+                            ? s('ob_not_a_photo')
+                            : '${snap.error}',
+                        style: const TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center)));
           }
           final p = snap.data;
-          if (p == null) return const Center(child: CircularProgressIndicator(color: Colors.white));
+          if (p == null)
+            return const Center(
+                child: CircularProgressIndicator(color: Colors.white));
           return LayoutBuilder(
             builder: (context, box) {
               final frameW = box.maxWidth;
               final frameH = frameW / photoAspect;
               final frame = Size(frameW, frameH);
               // The photo covers the frame at scale 1; it can only grow from there.
-              final base = [frameW / p.width, frameH / p.height].reduce((a, b) => a > b ? a : b);
+              final base = [frameW / p.width, frameH / p.height]
+                  .reduce((a, b) => a > b ? a : b);
               return Column(
                 children: [
                   const Spacer(),
@@ -160,11 +190,15 @@ class _CropScreenState extends State<CropScreen> {
                             child: SizedBox(
                               width: p.width * base,
                               height: p.height * base,
-                              child: Image.memory(p.bytes, fit: BoxFit.fill, gaplessPlayback: true),
+                              child: Image.memory(p.bytes,
+                                  fit: BoxFit.fill, gaplessPlayback: true),
                             ),
                           ),
                           IgnorePointer(
-                            child: CustomPaint(painter: _GridPainter(color: Colors.white.withValues(alpha: 0.35))),
+                            child: CustomPaint(
+                                painter: _GridPainter(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.35))),
                           ),
                         ],
                       ),
@@ -174,20 +208,26 @@ class _CropScreenState extends State<CropScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      'Pinch to zoom, drag to move. What is in the frame is what devotees see on the home screen and the temple page.',
+                      s('ob_crop_help'),
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: Colors.white70),
                     ),
                   ),
                   const Spacer(),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.paddingOf(context).bottom + 16),
+                    padding: EdgeInsets.fromLTRB(
+                        20, 0, 20, MediaQuery.paddingOf(context).bottom + 16),
                     child: Row(children: [
                       Expanded(
                         child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54)),
-                          onPressed: _busy ? null : () => _controller.value = Matrix4.identity(),
-                          child: const Text('Reset'),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white54)),
+                          onPressed: _busy
+                              ? null
+                              : () => _controller.value = Matrix4.identity(),
+                          child: Text(s('ob_reset')),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -195,8 +235,14 @@ class _CropScreenState extends State<CropScreen> {
                         flex: 2,
                         child: FilledButton.icon(
                           onPressed: _busy ? null : () => _done(p, frame, base),
-                          icon: _busy ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check),
-                          label: Text(_busy ? 'Cropping…' : 'Use this crop'),
+                          icon: _busy
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.check),
+                          label:
+                              Text(_busy ? s('ob_cropping') : s('ob_use_crop')),
                         ),
                       ),
                     ]),
@@ -223,10 +269,17 @@ class _GridPainter extends CustomPainter {
       ..color = color
       ..strokeWidth = 1;
     for (var i = 1; i < 3; i++) {
-      canvas.drawLine(Offset(size.width * i / 3, 0), Offset(size.width * i / 3, size.height), paint);
-      canvas.drawLine(Offset(0, size.height * i / 3), Offset(size.width, size.height * i / 3), paint);
+      canvas.drawLine(Offset(size.width * i / 3, 0),
+          Offset(size.width * i / 3, size.height), paint);
+      canvas.drawLine(Offset(0, size.height * i / 3),
+          Offset(size.width, size.height * i / 3), paint);
     }
-    canvas.drawRect(Offset.zero & size, paint..color = Palette.gold..strokeWidth = 2..style = PaintingStyle.stroke);
+    canvas.drawRect(
+        Offset.zero & size,
+        paint
+          ..color = Palette.gold
+          ..strokeWidth = 2
+          ..style = PaintingStyle.stroke);
   }
 
   @override

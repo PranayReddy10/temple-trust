@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -49,7 +50,10 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     final api = context.read<Session>().api;
     final overview = await api.get('admin/finance');
     final pending = await api.get('admin/settlements', {'status': 'pending'});
-    return (_map(overview['data']), [for (final r in pending['data'] as List) _map(r)]);
+    return (
+      _map(overview['data']),
+      [for (final r in pending['data'] as List) _map(r)]
+    );
   }
 
   void _reload() => setState(() {
@@ -59,49 +63,71 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
   Future<void> _settle(Json t) async {
     final api = context.read<Session>().api;
     final note = TextEditingController();
-    final account = t['payout_account'] == null ? null : _map(t['payout_account']);
+    final account =
+        t['payout_account'] == null ? null : _map(t['payout_account']);
     final ahead = _n(t['ahead_gross_paise']);
     var all = true;
+    final s = S.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setDialog) => AlertDialog(
-          title: Text('Settle with ${t['name']}'),
-          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${_n(t['ready_bookings'])} paid items, ${rupees(t['ready_gross_paise'])} in all. '
-                'The temple gets ${rupees(t['ready_net_paise'])} after a ${t['fee_percent']}% fee.'),
-            if (_n(t['ready_donations_paise']) > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text('Includes ${rupees(t['ready_donations_paise'])} in online hundi gifts, settled with the bookings and tickets.'),
-              ),
-            if (ahead > 0)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: all,
-                onChanged: (v) => setDialog(() => all = v),
-                title: Text('Include ${rupees(ahead)} paid in advance'),
-                subtitle: Text(all ? 'Bookings for today and days ahead are paid out now and can no longer be cancelled.' : 'Only seva days up to yesterday; the rest waits for a later settlement.'),
-              ),
-            const SizedBox(height: 8),
-            Text(account == null || account['is_complete'] != true
-                ? 'No payout details yet: add them before you transfer.'
-                : account['is_verified'] == true
-                    ? 'Pays to a verified account.'
-                    : 'Payout details are NOT verified: call the temple before you transfer.'),
-            TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (the temple sees this)')),
-          ]),
+          title: Text(s('ad_settle_with', {'name': t['name']})),
+          content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s('ad_settle_summary', {
+                  'n': _n(t['ready_bookings']),
+                  'total': rupees(t['ready_gross_paise']),
+                  'net': rupees(t['ready_net_paise']),
+                  'fee': t['fee_percent'],
+                })),
+                if (_n(t['ready_donations_paise']) > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(s('ad_includes_hundi',
+                        {'amount': rupees(t['ready_donations_paise'])})),
+                  ),
+                if (ahead > 0)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: all,
+                    onChanged: (v) => setDialog(() => all = v),
+                    title: Text(
+                        s('ad_include_advance', {'amount': rupees(ahead)})),
+                    subtitle:
+                        Text(all ? s('ad_advance_on') : s('ad_advance_off')),
+                  ),
+                const SizedBox(height: 8),
+                Text(account == null || account['is_complete'] != true
+                    ? s('ad_no_payout_details')
+                    : account['is_verified'] == true
+                        ? s('ad_pays_verified')
+                        : s('ad_payout_not_verified')),
+                TextField(
+                    controller: note,
+                    decoration:
+                        InputDecoration(labelText: s('ad_note_temple_sees'))),
+              ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Prepare')),
+            TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: Text(s('cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(c, true),
+                child: Text(s('ad_prepare'))),
           ],
         ),
       ),
     );
     if (ok != true) return;
     try {
-      await api.post('admin/temples/${t['id']}/settlements', {'all': all, if (note.text.trim().isNotEmpty) 'note': note.text.trim()});
-      if (mounted) showMessage(context, 'Settlement prepared. Transfer it, then mark it paid with the UTR.');
+      await api.post('admin/temples/${t['id']}/settlements', {
+        'all': all,
+        if (note.text.trim().isNotEmpty) 'note': note.text.trim()
+      });
+      if (mounted) showMessage(context, s('ad_settlement_prepared'));
       _reload();
     } catch (e) {
       if (mounted) showError(context, e);
@@ -109,34 +135,48 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
   }
 
   Future<void> _open(Json s) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSettlementScreen(settlement: s)));
+    await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => AdminSettlementScreen(settlement: s)));
     if (mounted) _reload();
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Finance'),
+        title: Text(s('finance')),
         actions: [
           IconButton(
-            tooltip: 'Paid settlements',
+            tooltip: s('ad_paid_settlements'),
             icon: const Icon(Icons.history),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _PaidSettlementsScreen())),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const _PaidSettlementsScreen())),
           ),
         ],
       ),
       body: FutureBuilder<(Json, List<Json>)>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return ErrorView(error: snap.error!, onRetry: _reload);
+          }
           final (o, pending) = snap.data!;
           final today = _map(o['today']);
           final collected = _map(o['collected_today']);
           final month = _map(o['month']);
-          final temples = [for (final t in (o['temples'] as List? ?? const [])) _map(t)];
-          final owed = temples.where((t) => _n(t['ready_gross_paise']) > 0).toList();
+          final temples = [
+            for (final t in (o['temples'] as List? ?? const [])) _map(t)
+          ];
+          final owed =
+              temples.where((t) => _n(t['ready_gross_paise']) > 0).toList();
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -150,22 +190,54 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
                 HeroPanel(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('SEVAS TODAY', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-                    const SizedBox(height: 4),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(rupees(today['amount_paise']), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 32, fontWeight: FontWeight.w600, height: 1.1)),
-                    ),
-                    Text('${_n(today['bookings'])} paid bookings · ${rupees(collected['amount_paise'])} collected through the gateway', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 14),
-                    Row(children: [
-                      Expanded(child: _Panel('This month', rupees(month['amount_paise']), '${_n(month['bookings'])} bookings')),
-                      Expanded(child: _Panel('Owed to temples', rupees(o['ready_net_paise']), 'paid, not yet settled')),
-                      Expanded(child: _Panel('Being paid', rupees(o['in_payout_net_paise']), '${pending.length} to transfer')),
-                    ]),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(s('ad_sevas_today_caps'),
+                            style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2)),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(rupees(today['amount_paise']),
+                              style: const TextStyle(
+                                  fontFamily: TrustTheme.serif,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.1)),
+                        ),
+                        Text(
+                            s('ad_paid_collected', {
+                              'n': _n(today['bookings']),
+                              'amount': rupees(collected['amount_paise'])
+                            }),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 14),
+                        Row(children: [
+                          Expanded(
+                              child: _Panel(
+                                  s('this_month'),
+                                  rupees(month['amount_paise']),
+                                  s('n_bookings',
+                                      {'n': _n(month['bookings'])}))),
+                          Expanded(
+                              child: _Panel(
+                                  s('ad_owed_to_temples'),
+                                  rupees(o['ready_net_paise']),
+                                  s('ad_paid_not_settled'))),
+                          Expanded(
+                              child: _Panel(
+                                  s('being_paid'),
+                                  rupees(o['in_payout_net_paise']),
+                                  s('ad_n_to_transfer',
+                                      {'n': pending.length}))),
+                        ]),
+                      ]),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -175,7 +247,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                   decoration: InputDecoration(
                     isDense: true,
                     prefixIcon: const Icon(Icons.search),
-                    hintText: 'Search temple, town or reference',
+                    hintText: s('ad_search_finance'),
                     suffixIcon: _search.text.isEmpty
                         ? null
                         : IconButton(
@@ -184,25 +256,39 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                           ),
                   ),
                 ),
-                if (pending.any((s) => _matches(s, temple: _map(s['temple'])))) ...[
-                  const SectionTitle('Waiting for the transfer'),
-                  for (final s in pending.where((s) => _matches(s, temple: _map(s['temple']))))
+                if (pending
+                    .any((p) => _matches(p, temple: _map(p['temple'])))) ...[
+                  SectionTitle(s('ad_waiting_transfer')),
+                  for (final p in pending
+                      .where((p) => _matches(p, temple: _map(p['temple']))))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Card(
                         child: ListTile(
-                          title: Text('${_map(s['temple'])['name'] ?? ''} · ${rupees(s['net_paise'])}'),
-                          subtitle: Text('${s['reference']} · ${s['period']} · ${_n(s['bookings_count'])} bookings'),
+                          title: Text(
+                              '${_map(p['temple'])['name'] ?? ''} · ${rupees(p['net_paise'])}'),
+                          subtitle: Text(
+                              '${p['reference']} · ${p['period']} · ${s('n_bookings', {
+                                'n': _n(p['bookings_count'])
+                              })}'),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _open(s),
+                          onTap: () => _open(p),
                         ),
                       ),
                     ),
                 ],
-                const SectionTitle('Ready to settle'),
-                if (owed.isEmpty) const Card(child: ListTile(title: Text('Nothing owed right now'), subtitle: Text('Temples appear here once devotees pay for a seva.'))),
+                SectionTitle(s('ad_ready_to_settle')),
+                if (owed.isEmpty)
+                  Card(
+                      child: ListTile(
+                          title: Text(s('ad_nothing_owed')),
+                          subtitle: Text(s('ad_nothing_owed_hint')))),
                 if (owed.isNotEmpty && !owed.any(_matches))
-                  Card(child: ListTile(title: Text('No temple matches "${_search.text.trim()}"'), subtitle: const Text('Clear the search to see every temple.'))),
+                  Card(
+                      child: ListTile(
+                          title: Text(s('ad_no_temple_matches',
+                              {'q': _search.text.trim()})),
+                          subtitle: Text(s('ad_clear_search')))),
                 for (final t in owed.where(_matches))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -210,11 +296,14 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                       child: ListTile(
                         title: Text('${t['name']}'),
                         subtitle: Text([
-                          '${_n(t['ready_bookings'])} paid items',
-                          'gets ${rupees(t['ready_net_paise'])}',
-                          _payoutState(t['payout_account']),
+                          s('ad_n_paid_items', {'n': _n(t['ready_bookings'])}),
+                          s('ad_gets',
+                              {'amount': rupees(t['ready_net_paise'])}),
+                          _payoutState(s, t['payout_account']),
                         ].join(' · ')),
-                        trailing: FilledButton.tonal(onPressed: () => _settle(t), child: const Text('Settle')),
+                        trailing: FilledButton.tonal(
+                            onPressed: () => _settle(t),
+                            child: Text(s('ad_settle'))),
                       ),
                     ),
                   ),
@@ -227,10 +316,12 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
   }
 }
 
-String _payoutState(dynamic account) {
+String _payoutState(S s, dynamic account) {
   final a = _map(account);
-  if (a['is_complete'] != true) return 'no payout details';
-  return a['is_verified'] == true ? 'account verified' : 'account to verify';
+  if (a['is_complete'] != true) return s('ad_no_payout_details_lc');
+  return a['is_verified'] == true
+      ? s('ad_account_verified')
+      : s('ad_account_to_verify');
 }
 
 /// One settlement for the person paying it: where to send the money, then
@@ -265,14 +356,17 @@ class _AdminSettlementScreenState extends State<AdminSettlementScreen> {
       _error = null;
     });
     try {
-      final res = await context.read<Session>().api.post('admin/settlements/${_s['id']}/paid', {
+      final res = await context
+          .read<Session>()
+          .api
+          .post('admin/settlements/${_s['id']}/paid', {
         'method': _method,
         if (_ref.text.trim().isNotEmpty) 'transaction_ref': _ref.text.trim(),
         if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
       });
       if (!mounted) return;
       setState(() => _s = _map(res['data']));
-      showMessage(context, 'Marked paid. The temple sees the reference in its app.');
+      showMessage(context, S.of(context)('ad_marked_paid'));
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _error = e);
@@ -285,26 +379,35 @@ class _AdminSettlementScreenState extends State<AdminSettlementScreen> {
 
   Future<void> _cancel() async {
     final reason = TextEditingController();
+    final s = S.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Cancel this settlement?'),
+        title: Text(s('ad_cancel_settlement_q')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Only if nothing was transferred. Its bookings go back to the temple\'s balance.'),
-          TextField(controller: reason, decoration: const InputDecoration(labelText: 'Reason')),
+          Text(s('ad_cancel_settlement_body')),
+          TextField(
+              controller: reason,
+              decoration: InputDecoration(labelText: s('reason'))),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Cancel settlement')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: Text(s('ad_keep'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: Text(s('ad_cancel_settlement'))),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     try {
-      final res = await context.read<Session>().api.post('admin/settlements/${_s['id']}/cancel', {'reason': reason.text.trim()});
+      final res = await context.read<Session>().api.post(
+          'admin/settlements/${_s['id']}/cancel',
+          {'reason': reason.text.trim()});
       if (!mounted) return;
       setState(() => _s = _map(res['data']));
-      showMessage(context, 'Settlement cancelled.');
+      showMessage(context, s('ad_settlement_cancelled'));
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -315,54 +418,84 @@ class _AdminSettlementScreenState extends State<AdminSettlementScreen> {
     final pending = _map(_s['status'])['value'] == 'pending';
     final to = _s['payout_to'] == null ? null : _map(_s['payout_to']);
     final theme = Theme.of(context);
+    final s = S.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text('${_map(_s['temple'])['name'] ?? 'Settlement'}', overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(
+          title: Text('${_map(_s['temple'])['name'] ?? s('settlement')}',
+              overflow: TextOverflow.ellipsis)),
       body: SettlementDetails(
         settlement: _s,
-        footer: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const SectionTitle('Pay to'),
+        footer:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SectionTitle(s('ad_pay_to')),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: to == null
-                  ? const Text('No payout details when this was prepared. Ask the temple\'s owner to add them in the app, then cancel and prepare again.')
-                  : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      if (to['account_name'] != null) SelectableText('${to['account_name']}', style: theme.textTheme.titleMedium),
-                      if (to['account_number'] != null) SelectableText('A/c ${to['account_number']} · ${to['ifsc'] ?? ''}'),
-                      if (to['bank_name'] != null) Text('${to['bank_name']}'),
-                      if (to['upi_id'] != null) SelectableText('UPI ${to['upi_id']}'),
-                      if (to['verified'] != true)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text('Not verified when prepared: confirm with the temple before transferring.', style: TextStyle(color: theme.colorScheme.error)),
-                        ),
-                    ]),
+                  ? Text(s('ad_no_payout_when_prepared'))
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                          if (to['account_name'] != null)
+                            SelectableText('${to['account_name']}',
+                                style: theme.textTheme.titleMedium),
+                          if (to['account_number'] != null)
+                            SelectableText(s('ad_account_no', {
+                              'number': to['account_number'],
+                              'ifsc': to['ifsc'] ?? ''
+                            })),
+                          if (to['bank_name'] != null)
+                            Text('${to['bank_name']}'),
+                          if (to['upi_id'] != null)
+                            SelectableText('UPI ${to['upi_id']}'),
+                          if (to['verified'] != true)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(s('ad_not_verified_prepared'),
+                                  style: TextStyle(
+                                      color: theme.colorScheme.error)),
+                            ),
+                        ]),
             ),
           ),
           if (pending) ...[
-            const SectionTitle('Record the transfer'),
+            SectionTitle(s('ad_record_transfer')),
             DropdownButtonFormField<String>(
               initialValue: _method,
-              decoration: const InputDecoration(labelText: 'Paid by'),
-              items: const [
-                DropdownMenuItem(value: 'bank', child: Text('Bank transfer (NEFT / IMPS / RTGS)')),
-                DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                DropdownMenuItem(value: 'cash', child: Text('Cash')),
+              decoration: InputDecoration(labelText: s('ad_paid_by')),
+              items: [
+                DropdownMenuItem(
+                    value: 'bank', child: Text(s('ad_method_bank'))),
+                const DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                DropdownMenuItem(
+                    value: 'cheque', child: Text(s('ad_method_cheque'))),
+                DropdownMenuItem(
+                    value: 'cash', child: Text(s('ad_method_cash'))),
               ],
               onChanged: (v) => setState(() => _method = v ?? 'bank'),
             ),
             const SizedBox(height: 12),
-            ApiTextField(controller: _ref, label: 'UTR / transaction or cheque number', field: 'transaction_ref', error: _error),
-            ApiTextField(controller: _note, label: 'Note (the temple sees this)', field: 'note', error: _error),
+            ApiTextField(
+                controller: _ref,
+                label: s('ad_utr_label'),
+                field: 'transaction_ref',
+                error: _error),
+            ApiTextField(
+                controller: _note,
+                label: s('ad_note_temple_sees'),
+                field: 'note',
+                error: _error),
             FilledButton.icon(
               onPressed: _busy ? null : _paid,
               icon: const Icon(Icons.check_circle_outline),
-              label: Text('Mark ${rupees(_s['net_paise'])} paid'),
+              label:
+                  Text(s('ad_mark_paid', {'amount': rupees(_s['net_paise'])})),
             ),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: _busy ? null : _cancel, child: const Text('Cancel settlement')),
+            OutlinedButton(
+                onPressed: _busy ? null : _cancel,
+                child: Text(s('ad_cancel_settlement'))),
           ],
         ]),
       ),
@@ -392,14 +525,16 @@ class _PaidSettlementsScreenState extends State<_PaidSettlementsScreen> {
   void _changed(String _) {
     setState(() {});
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () => _list.currentState?.reload());
+    _debounce = Timer(
+        const Duration(milliseconds: 400), () => _list.currentState?.reload());
   }
 
   @override
   Widget build(BuildContext context) {
     final q = _search.text.trim();
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Paid settlements')),
+      appBar: AppBar(title: Text(s('ad_paid_settlements'))),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -410,7 +545,7 @@ class _PaidSettlementsScreenState extends State<_PaidSettlementsScreen> {
             decoration: InputDecoration(
               isDense: true,
               prefixIcon: const Icon(Icons.search),
-              hintText: 'Search temple, town, reference or UTR',
+              hintText: s('ad_search_paid'),
               suffixIcon: _search.text.isEmpty
                   ? null
                   : IconButton(
@@ -428,15 +563,24 @@ class _PaidSettlementsScreenState extends State<_PaidSettlementsScreen> {
             key: _list,
             load: () async {
               final q = _search.text.trim();
-              final res = await context.read<Session>().api.get('admin/settlements', {'status': 'paid', if (q.length >= 2) 'q': q});
+              final res = await context.read<Session>().api.get(
+                  'admin/settlements',
+                  {'status': 'paid', if (q.length >= 2) 'q': q});
               return [for (final r in res['data'] as List) _map(r)];
             },
-            empty: q.length >= 2 ? 'No paid settlement matches "$q".' : 'Nothing paid yet.',
-            itemBuilder: (context, s, reload) => Card(
+            empty: q.length >= 2
+                ? s('ad_no_paid_match', {'q': q})
+                : s('ad_nothing_paid'),
+            itemBuilder: (context, p, reload) => Card(
               child: ListTile(
-                title: Text('${_map(s['temple'])['name'] ?? ''} · ${rupees(s['net_paise'])}'),
-                subtitle: Text('${s['period']} · UTR ${s['transaction_ref'] ?? '—'}'),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSettlementScreen(settlement: s))),
+                title: Text(
+                    '${_map(p['temple'])['name'] ?? ''} · ${rupees(p['net_paise'])}'),
+                subtitle:
+                    Text('${p['period']} · UTR ${p['transaction_ref'] ?? '—'}'),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => AdminSettlementScreen(settlement: p))),
               ),
             ),
           ),
@@ -456,9 +600,20 @@ class _Panel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, height: 1.2))),
-      Text(caption, style: const TextStyle(color: Colors.white70, fontSize: 10.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+      Text(label,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
+      FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value,
+              style: const TextStyle(
+                  fontSize: 17, fontWeight: FontWeight.w700, height: 1.2))),
+      Text(caption,
+          style: const TextStyle(color: Colors.white70, fontSize: 10.5),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
     ]);
   }
 }

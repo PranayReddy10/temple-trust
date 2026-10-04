@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/live_location.dart';
 import '../../core/photo_crop.dart';
 import '../../core/session.dart';
@@ -61,12 +62,17 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
 
   Future<void> _addPhotos() async {
     final max = context.read<Session>().options.maxRegistrationPhotos;
-    final picked = await ImagePicker().pickMultiImage(imageQuality: 85, maxWidth: 2400);
+    final picked =
+        await ImagePicker().pickMultiImage(imageQuality: 85, maxWidth: 2400);
     if (picked.isEmpty) return;
     // Each framed at 4:3, the shape devotees see every temple photo in.
     for (final (i, f) in picked.take(max - _photos.length).toList().indexed) {
       if (!mounted) return;
-      final c = await cropPhoto(context, f, title: picked.length == 1 ? 'Crop photo' : 'Crop photo ${i + 1} of ${picked.length}');
+      final s = S.of(context);
+      final c = await cropPhoto(context, f,
+          title: picked.length == 1
+              ? s('ob_crop_photo')
+              : s('ob_crop_photo_n', {'i': i + 1, 'n': picked.length}));
       if (c != null) setState(() => _photos.add(c));
     }
   }
@@ -74,11 +80,11 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
     if (_fix == null) {
-      showMessage(context, 'Record the temple location: stand at the temple and tap "Use my current location".');
+      showMessage(context, S.of(context)('ob_need_location'));
       return;
     }
     if (_photos.isEmpty) {
-      showMessage(context, 'Add at least one photo of the temple.');
+      showMessage(context, S.of(context)('ob_need_photo'));
       return;
     }
     setState(() {
@@ -88,7 +94,11 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
     final session = context.read<Session>();
     try {
       final files = <UploadFile>[
-        for (var i = 0; i < _photos.length; i++) UploadFile(field: 'photos[$i]', filename: _photos[i].filename, bytes: _photos[i].bytes),
+        for (var i = 0; i < _photos.length; i++)
+          UploadFile(
+              field: 'photos[$i]',
+              filename: _photos[i].filename,
+              bytes: _photos[i].bytes),
       ];
       await session.api.multipart('registrations',
           fields: {
@@ -104,7 +114,7 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
           files: files);
       await session.refresh();
       if (!mounted) return;
-      showMessage(context, 'Thank you. Our team will review the temple and call you.');
+      showMessage(context, S.of(context)('ob_registration_sent'));
       Navigator.pop(context);
     } on ApiException catch (e) {
       if (mounted) {
@@ -116,79 +126,130 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
     }
   }
 
-  Widget _field(String key, String label, {bool required = false, int lines = 1, String? hint, TextInputType? type}) =>
-      ApiTextField(controller: _c[key]!, label: label, field: key, error: _error, required: required, maxLines: lines, hint: hint, keyboardType: type);
+  Widget _field(String key, String label,
+          {bool required = false,
+          int lines = 1,
+          String? hint,
+          TextInputType? type}) =>
+      ApiTextField(
+          controller: _c[key]!,
+          label: label,
+          field: key,
+          error: _error,
+          required: required,
+          maxLines: lines,
+          hint: hint,
+          keyboardType: type);
 
   @override
   Widget build(BuildContext context) {
     final options = context.watch<Session>().options;
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Register a temple')),
+      appBar: AppBar(title: Text(s('ob_register_title'))),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            const Text('Tell us about the temple. The editors check every registration before it is listed.'),
-            const SectionTitle('The temple'),
-            _field('name', 'Temple name', required: true),
-            _field('alternate_names', 'Other names', hint: 'Local or popular names, comma separated'),
-            OptionField(label: 'Main deity', options: options.deities, value: _deityId, allowNone: true, noneLabel: 'Not in the list', onChanged: (v) => setState(() => _deityId = v)),
+            Text(s('ob_register_intro')),
+            SectionTitle(s('ob_the_temple')),
+            _field('name', s('ob_temple_name'), required: true),
+            _field('alternate_names', s('ob_other_names'),
+                hint: s('ob_other_names_hint')),
+            OptionField(
+                label: s('ob_main_deity'),
+                options: options.deities,
+                value: _deityId,
+                allowNone: true,
+                noneLabel: s('ob_not_in_list'),
+                onChanged: (v) => setState(() => _deityId = v)),
             const SizedBox(height: 12),
-            if (_deityId == null) _field('deity_name', 'Deity name'),
-            _field('description', 'About the temple', required: true, lines: 4, hint: 'At least a few sentences'),
-            _field('history', 'History', lines: 3),
-            _field('built_period', 'Built in', hint: 'e.g. 12th century, Kakatiya period'),
-            _field('festivals', 'Main festivals', lines: 2),
-            const SectionTitle('Where'),
-            _field('address', 'Address', lines: 2),
-            _field('city', 'Village / town / city', required: true),
-            _field('district', 'District'),
-            OptionField(label: 'State', options: options.states, value: _stateId, allowNone: true, onChanged: (v) => setState(() => _stateId = v)),
+            if (_deityId == null) _field('deity_name', s('ob_deity_name')),
+            _field('description', s('ob_about_temple'),
+                required: true, lines: 4, hint: s('ob_about_hint')),
+            _field('history', s('ob_history'), lines: 3),
+            _field('built_period', s('ob_built_in'),
+                hint: s('ob_built_in_hint')),
+            _field('festivals', s('ob_main_festivals'), lines: 2),
+            SectionTitle(s('ob_where')),
+            _field('address', s('ob_address'), lines: 2),
+            _field('city', s('ob_city'), required: true),
+            _field('district', s('ob_district')),
+            OptionField(
+                label: s('ob_state'),
+                options: options.states,
+                value: _stateId,
+                allowNone: true,
+                onChanged: (v) => setState(() => _stateId = v)),
             const SizedBox(height: 12),
-            _field('pincode', 'PIN code', type: TextInputType.number),
+            _field('pincode', s('ob_pincode'), type: TextInputType.number),
             LiveLocationField(
               value: _fix,
               required: true,
-              error: _error?.field('location_accuracy') ?? _error?.field('latitude'),
+              error: _error?.field('location_accuracy') ??
+                  _error?.field('latitude'),
               onChanged: (f) => setState(() => _fix = f),
             ),
-            const SectionTitle('Timings and contact'),
+            SectionTitle(s('ob_timings_contact')),
             Row(children: [
-              Expanded(child: TimeField(label: 'Opens', value: _opens, onChanged: (t) => setState(() => _opens = t))),
+              Expanded(
+                  child: TimeField(
+                      label: s('ob_opens'),
+                      value: _opens,
+                      onChanged: (t) => setState(() => _opens = t))),
               const SizedBox(width: 12),
-              Expanded(child: TimeField(label: 'Closes', value: _closes, onChanged: (t) => setState(() => _closes = t))),
+              Expanded(
+                  child: TimeField(
+                      label: s('ob_closes'),
+                      value: _closes,
+                      onChanged: (t) => setState(() => _closes = t))),
             ]),
             const SizedBox(height: 12),
-            _field('timings_note', 'Timings note', hint: 'e.g. Closed 12:30 to 16:00'),
-            _field('contact_phone', 'Temple phone', type: TextInputType.phone),
-            _field('official_website', 'Website', type: TextInputType.url),
-            const SectionTitle('You'),
+            _field('timings_note', s('ob_timings_note'),
+                hint: s('ob_timings_note_hint')),
+            _field('contact_phone', s('ob_temple_phone'),
+                type: TextInputType.phone),
+            _field('official_website', s('ob_website'),
+                type: TextInputType.url),
+            SectionTitle(s('ob_you')),
             OptionField(
-              label: 'Your role at the temple',
+              label: s('ob_your_role'),
               options: options.registrationRoles,
               value: _role,
               onChanged: (v) => setState(() => _role = '$v'),
             ),
             const SizedBox(height: 12),
-            _field('submitter_note', 'Anything the editors should know', lines: 3),
-            SectionTitle('Photos (${_photos.length}/${options.maxRegistrationPhotos})'),
-            if (_error?.field('photos') != null) Text(_error!.field('photos')!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            _field('submitter_note', s('ob_editor_note'), lines: 3),
+            SectionTitle(s('ob_photos_count',
+                {'n': _photos.length, 'max': options.maxRegistrationPhotos})),
+            if (_error?.field('photos') != null)
+              Text(_error!.field('photos')!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 for (final p in _photos)
                   Chip(
-                    avatar: ClipRRect(borderRadius: BorderRadius.circular(6), child: Image.memory(p.bytes, width: 28, height: 21, fit: BoxFit.cover)),
+                    avatar: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(p.bytes,
+                            width: 28, height: 21, fit: BoxFit.cover)),
                     label: Text(p.filename, overflow: TextOverflow.ellipsis),
                     onDeleted: () => setState(() => _photos.remove(p)),
                   ),
-                if (_photos.length < options.maxRegistrationPhotos) ActionChip(avatar: const Icon(Icons.add_a_photo_outlined, size: 18), label: const Text('Add photos'), onPressed: _addPhotos),
+                if (_photos.length < options.maxRegistrationPhotos)
+                  ActionChip(
+                      avatar: const Icon(Icons.add_a_photo_outlined, size: 18),
+                      label: Text(s('ob_add_photos')),
+                      onPressed: _addPhotos),
               ],
             ),
             const SizedBox(height: 24),
-            FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? 'Sending…' : 'Send for review')),
+            FilledButton(
+                onPressed: _busy ? null : _submit,
+                child: Text(_busy ? s('ob_sending') : s('ob_send_review'))),
           ],
         ),
       ),
