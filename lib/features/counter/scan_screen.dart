@@ -8,6 +8,7 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'find_booking_screen.dart';
+import 'passport_card.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -22,7 +23,8 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  final _scanner = MobileScannerController(detectionSpeed: DetectionSpeed.noDuplicates);
+  final _scanner =
+      MobileScannerController(detectionSpeed: DetectionSpeed.noDuplicates);
   final _typed = TextEditingController();
   bool _passport = false;
   bool _busy = false;
@@ -68,7 +70,8 @@ class _ScanScreenState extends State<ScanScreen> {
     try {
       if (_passport) {
         final res = await api.post('passports/lookup', {'code': _code});
-        setState(() => _passportData = (res['data'] as Map).cast<String, dynamic>());
+        setState(
+            () => _passportData = (res['data'] as Map).cast<String, dynamic>());
       } else {
         final res = await api.post('bookings/scan', {'code': _code});
         final data = (res['data'] as Map).cast<String, dynamic>();
@@ -87,7 +90,10 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _verify() async {
     setState(() => _busy = true);
     try {
-      final res = await context.read<Session>().api.post('bookings/verify', {'code': _code});
+      final res = await context
+          .read<Session>()
+          .api
+          .post('bookings/verify', {'code': _code});
       final data = (res['data'] as Map).cast<String, dynamic>();
       setState(() {
         _booking = (data['booking'] as Map).cast<String, dynamic>();
@@ -104,7 +110,10 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _markVisited(int templeId) async {
     setState(() => _busy = true);
     try {
-      final res = await context.read<Session>().api.post('passports/visit', {'code': _code, 'temple_id': templeId});
+      final res = await context
+          .read<Session>()
+          .api
+          .post('passports/visit', {'code': _code, 'temple_id': templeId});
       setState(() => _visitMessage = '${(res['data'] as Map)['message']}');
     } on ApiException catch (e) {
       setState(() => _error = e.details);
@@ -117,7 +126,8 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     final s = S.of(context);
     final theme = Theme.of(context);
-    final showingResult = _booking != null || _passportData != null || _error != null;
+    final showingResult =
+        _booking != null || _passportData != null || _error != null;
     return Scaffold(
       appBar: AppBar(title: Text(s('scan_at_counter'))),
       body: ListView(
@@ -125,8 +135,14 @@ class _ScanScreenState extends State<ScanScreen> {
         children: [
           SegmentedButton<bool>(
             segments: [
-              ButtonSegment(value: false, label: Text(s('seva_event_ticket')), icon: const Icon(Icons.confirmation_number_outlined)),
-              ButtonSegment(value: true, label: Text(s('passport')), icon: const Icon(Icons.badge_outlined)),
+              ButtonSegment(
+                  value: false,
+                  label: Text(s('seva_event_ticket')),
+                  icon: const Icon(Icons.confirmation_number_outlined)),
+              ButtonSegment(
+                  value: true,
+                  label: Text(s('passport')),
+                  icon: const Icon(Icons.badge_outlined)),
             ],
             selected: {_passport},
             onSelectionChanged: (v) {
@@ -144,7 +160,9 @@ class _ScanScreenState extends State<ScanScreen> {
                 setState(() => _torch = !_torch);
               },
               onDetect: (capture) {
-                final v = capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
+                final v = capture.barcodes.isEmpty
+                    ? null
+                    : capture.barcodes.first.rawValue;
                 if (v != null) _lookup(v);
               },
               hint: s('point_camera'),
@@ -153,7 +171,9 @@ class _ScanScreenState extends State<ScanScreen> {
             const SizedBox(height: 16),
             Row(children: [
               Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(s('or_type'), style: theme.textTheme.bodySmall)),
+              Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(s('or_type'), style: theme.textTheme.bodySmall)),
               Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
             ]),
             const SizedBox(height: 12),
@@ -162,29 +182,52 @@ class _ScanScreenState extends State<ScanScreen> {
                 child: TextField(
                   controller: _typed,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(hintText: _passport ? s('passport_code') : s('booking_reference'), prefixIcon: const Icon(Icons.keyboard_alt_outlined)),
+                  decoration: InputDecoration(
+                      hintText: _passport
+                          ? s('passport_code')
+                          : s('booking_reference'),
+                      prefixIcon: const Icon(Icons.keyboard_alt_outlined)),
                   onSubmitted: _lookup,
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton(onPressed: _busy ? null : () => _lookup(_typed.text), child: Text(s('check'))),
+              FilledButton(
+                  onPressed: _busy ? null : () => _lookup(_typed.text),
+                  child: Text(s('check'))),
             ]),
             // No phone at the counter: find the booking by number or name.
             if (!_passport)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FindBookingScreen())),
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const FindBookingScreen())),
                   icon: const Icon(Icons.person_search_outlined),
                   label: Text(s('no_phone_find')),
                 ),
               ),
           ],
-          if (_busy) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-          if (_error != null) _ResultCard(color: theme.colorScheme.error, icon: Icons.error_outline, title: s('not_found'), body: _error!),
+          if (_busy)
+            const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator())),
+          if (_error != null)
+            _ResultCard(
+                color: theme.colorScheme.error,
+                icon: Icons.error_outline,
+                title: s('not_found'),
+                body: _error!),
           if (_error != null && !_passport)
             TextButton.icon(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FindBookingScreen(initialQuery: _typed.text.trim().isEmpty ? null : _typed.text.trim()))),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => FindBookingScreen(
+                          initialQuery: _typed.text.trim().isEmpty
+                              ? null
+                              : _typed.text.trim()))),
               icon: const Icon(Icons.person_search_outlined),
               label: Text(s('search_instead')),
             ),
@@ -213,20 +256,49 @@ class _ScanScreenState extends State<ScanScreen> {
     final status = '${(b['status'] as Map?)?['value']}';
     final (color, icon, title) = switch (_outcome) {
       'verified' => (Palette.tulsi, Icons.check_circle, s('received_welcome')),
-      'already_verified' => (const Color(0xFFB08A10), Icons.warning_amber_rounded, '${s('already_used')}${b['verified_at'] != null ? ' · ${b['verified_at']}' : ''}'),
+      'already_verified' => (
+          const Color(0xFFB08A10),
+          Icons.warning_amber_rounded,
+          '${s('already_used')}${b['verified_at'] != null ? ' · ${b['verified_at']}' : ''}'
+        ),
       _ => status == 'confirmed'
-          ? (Theme.of(context).colorScheme.primary, Icons.confirmation_number_outlined, isTicket ? s('valid_ticket') : s('valid_booking'))
-          : (Theme.of(context).colorScheme.error, Icons.block, '${(b['status'] as Map?)?['label']}'),
+          ? (
+              Theme.of(context).colorScheme.primary,
+              Icons.confirmation_number_outlined,
+              isTicket ? s('valid_ticket') : s('valid_booking')
+            )
+          : (
+              Theme.of(context).colorScheme.error,
+              Icons.block,
+              '${(b['status'] as Map?)?['label']}'
+            ),
     };
     final rows = <(IconData, String)>[
-      (isTicket ? Icons.celebration_outlined : Icons.local_fire_department_outlined, '${isTicket ? event['title'] : puja['name']} · ${temple['name']}'),
-      if (isTicket && event['group_name'] != null) (Icons.groups_outlined, '${event['group_name']}'),
-      (Icons.calendar_month_outlined, '${isTicket ? (b['occurs_on'] ?? b['booked_for']) : b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' · ${(b['slot'] as Map)['label']}' : ''} · ${s.people((b['people'] as num?)?.toInt() ?? 1)}'),
-      (Icons.person_outline, '${b['devotee_name'] ?? ''}${b['devotee_phone'] != null ? ' · ${b['devotee_phone']}' : ''}'),
-      if (b['gotram'] != null) (Icons.family_restroom_outlined, 'Gotram: ${b['gotram']}'),
-      if (b['nakshatram'] != null) (Icons.star_outline, 'Nakshatram: ${b['nakshatram']}'),
+      (
+        isTicket
+            ? Icons.celebration_outlined
+            : Icons.local_fire_department_outlined,
+        '${isTicket ? event['title'] : puja['name']} · ${temple['name']}'
+      ),
+      if (isTicket && event['group_name'] != null)
+        (Icons.groups_outlined, '${event['group_name']}'),
+      (
+        Icons.calendar_month_outlined,
+        '${isTicket ? (b['occurs_on'] ?? b['booked_for']) : b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' · ${(b['slot'] as Map)['label']}' : ''} · ${s.people((b['people'] as num?)?.toInt() ?? 1)}'
+      ),
+      (
+        Icons.person_outline,
+        '${b['devotee_name'] ?? ''}${b['devotee_phone'] != null ? ' · ${b['devotee_phone']}' : ''}'
+      ),
+      if (b['gotram'] != null)
+        (Icons.family_restroom_outlined, 'Gotram: ${b['gotram']}'),
+      if (b['nakshatram'] != null)
+        (Icons.star_outline, 'Nakshatram: ${b['nakshatram']}'),
       if (b['note'] != null) (Icons.notes_outlined, '${b['note']}'),
-      (Icons.currency_rupee, '${b['amount'] ?? ''} · ${isTicket ? 'Ticket' : 'Ref'} ${b['reference']}'),
+      (
+        Icons.currency_rupee,
+        '${b['amount'] ?? ''} · ${isTicket ? 'Ticket' : 'Ref'} ${b['reference']}'
+      ),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _ResultCard(color: color, icon: icon, title: title, rows: rows),
@@ -234,7 +306,9 @@ class _ScanScreenState extends State<ScanScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 12),
           child: FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: Palette.tulsi, padding: const EdgeInsets.symmetric(vertical: 18)),
+            style: FilledButton.styleFrom(
+                backgroundColor: Palette.tulsi,
+                padding: const EdgeInsets.symmetric(vertical: 18)),
             onPressed: _busy ? null : _verify,
             icon: const Icon(Icons.how_to_reg),
             label: Text(s('mark_received')),
@@ -250,19 +324,15 @@ class _ScanScreenState extends State<ScanScreen> {
     final temples = context.read<Session>().account?.temples ?? const [];
     final chosen = _visitTemple ?? (temples.isEmpty ? null : temples.first.id);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      _ResultCard(
-        color: Theme.of(context).colorScheme.primary,
-        icon: Icons.badge_outlined,
-        title: '${p['name'] ?? 'Devotee'}',
-        rows: [
-          for (final e in p.entries)
-            if ((e.value is String || e.value is num) && e.key != 'name') (Icons.circle, '${e.key.replaceAll('_', ' ')}: ${e.value}'),
-        ],
-      ),
+      PassportCard(passport: p, templeIds: {for (final t in temples) t.id}),
       if (_visitMessage != null)
         Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: _ResultCard(color: Palette.tulsi, icon: Icons.verified, title: s('stamped'), body: _visitMessage!),
+          child: _ResultCard(
+              color: Palette.tulsi,
+              icon: Icons.verified,
+              title: s('stamped'),
+              body: _visitMessage!),
         )
       else if (temples.isNotEmpty) ...[
         const SizedBox(height: 12),
@@ -271,19 +341,34 @@ class _ScanScreenState extends State<ScanScreen> {
             initialValue: chosen,
             isExpanded: true,
             decoration: InputDecoration(labelText: s('visited_which')),
-            items: [for (final t in temples) DropdownMenuItem(value: t.id, child: Text(t.name, overflow: TextOverflow.ellipsis))],
+            items: [
+              for (final t in temples)
+                DropdownMenuItem(
+                    value: t.id,
+                    child: Text(t.name, overflow: TextOverflow.ellipsis))
+            ],
             onChanged: (v) => setState(() => _visitTemple = v),
           ),
         const SizedBox(height: 8),
         FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: Palette.tulsi, padding: const EdgeInsets.symmetric(vertical: 18)),
-          onPressed: _busy || chosen == null ? null : () => _markVisited(chosen),
+          style: FilledButton.styleFrom(
+              backgroundColor: Palette.tulsi,
+              padding: const EdgeInsets.symmetric(vertical: 18)),
+          onPressed:
+              _busy || chosen == null ? null : () => _markVisited(chosen),
           icon: const Icon(Icons.approval),
-          label: Text(temples.length == 1 ? '${s('mark_visited')} · ${temples.first.name}' : s('mark_visited'), overflow: TextOverflow.ellipsis),
+          label: Text(
+              temples.length == 1
+                  ? '${s('mark_visited')} · ${temples.first.name}'
+                  : s('mark_visited'),
+              overflow: TextOverflow.ellipsis),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text('Only while they are here with you. The stamp goes into their passport, verified by the temple.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+          child: Text(
+              'Only while they are here with you. The stamp goes into their passport, verified by the temple.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall),
         ),
       ],
     ]);
@@ -292,7 +377,13 @@ class _ScanScreenState extends State<ScanScreen> {
 
 /// The camera, framed with corner marks and a torch button.
 class _ScannerFrame extends StatelessWidget {
-  const _ScannerFrame({required this.controller, required this.onDetect, required this.torch, required this.onTorch, required this.hint, required this.unavailable});
+  const _ScannerFrame(
+      {required this.controller,
+      required this.onDetect,
+      required this.torch,
+      required this.onTorch,
+      required this.hint,
+      required this.unavailable});
 
   final MobileScannerController controller;
   final void Function(BarcodeCapture) onDetect;
@@ -305,7 +396,9 @@ class _ScannerFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), boxShadow: TrustStyle.of(context).cardShadow),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: TrustStyle.of(context).cardShadow),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: SizedBox(
@@ -319,29 +412,45 @@ class _ScannerFrame extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 40),
+                    const Icon(Icons.videocam_off_outlined,
+                        color: Colors.white54, size: 40),
                     const SizedBox(height: 12),
-                    Text(unavailable, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+                    Text(unavailable,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70)),
                   ]),
                 ),
               ),
             ),
-            Center(child: CustomPaint(size: const Size(210, 210), painter: _CornersPainter(color: Palette.goldLight))),
+            Center(
+                child: CustomPaint(
+                    size: const Size(210, 210),
+                    painter: _CornersPainter(color: Palette.goldLight))),
             Positioned(
               left: 16,
               right: 16,
               bottom: 14,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(999)),
-                child: Text(hint, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(999)),
+                child: Text(hint,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700)),
               ),
             ),
             Positioned(
               top: 10,
               right: 10,
               child: IconButton.filledTonal(
-                style: IconButton.styleFrom(backgroundColor: Colors.black.withValues(alpha: 0.45), foregroundColor: torch ? Palette.goldLight : Colors.white),
+                style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.45),
+                    foregroundColor: torch ? Palette.goldLight : Colors.white),
                 onPressed: onTorch,
                 icon: Icon(torch ? Icons.flashlight_on : Icons.flashlight_off),
                 tooltip: 'Torch',
@@ -391,7 +500,12 @@ class _CornersPainter extends CustomPainter {
 }
 
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.color, required this.icon, required this.title, this.body, this.rows = const []});
+  const _ResultCard(
+      {required this.color,
+      required this.icon,
+      required this.title,
+      this.body,
+      this.rows = const []});
 
   final Color color;
   final IconData icon;
@@ -412,21 +526,35 @@ class _ResultCard extends StatelessWidget {
           child: Row(children: [
             Icon(icon, color: Colors.white, size: 28),
             const SizedBox(width: 12),
-            Expanded(child: Text(title, style: const TextStyle(color: Colors.white, fontFamily: TrustTheme.serif, fontSize: 18, fontWeight: FontWeight.w600))),
+            Expanded(
+                child: Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: TrustTheme.serif,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600))),
           ]),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (body != null) Text(body!, style: theme.textTheme.bodyMedium),
             for (final (i, r) in rows.indexed)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Icon(r.$1, size: r.$1 == Icons.circle ? 8 : 18, color: color),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(r.$2, style: i == 0 ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium)),
-                ]),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(r.$1,
+                          size: r.$1 == Icons.circle ? 8 : 18, color: color),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Text(r.$2,
+                              style: i == 0
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.bodyMedium)),
+                    ]),
               ),
           ]),
         ),
