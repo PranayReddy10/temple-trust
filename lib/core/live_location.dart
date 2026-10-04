@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'l10n.dart';
 import 'widgets.dart';
 
 /// The fix must be at least this good: the server refuses anything vaguer
@@ -24,25 +25,27 @@ class LiveFix {
 }
 
 /// Reads the phone's current position, asking for permission when needed.
-/// Throws a message the person can act on.
-Future<LiveFix> currentFix() async {
+/// Throws a message the person can act on, in [s]'s language.
+Future<LiveFix> currentFix([S s = const S('en')]) async {
   if (!await Geolocator.isLocationServiceEnabled()) {
-    throw 'Turn on location (GPS) on your phone, then try again.';
+    throw s('ob_gps_off');
   }
   var permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+  if (permission == LocationPermission.denied)
+    permission = await Geolocator.requestPermission();
   if (permission == LocationPermission.denied) {
-    throw 'Allow location access so the app can record where the temple is.';
+    throw s('ob_allow_location');
   }
   if (permission == LocationPermission.deniedForever) {
-    throw 'Location access is turned off for this app. Allow it in the phone settings.';
+    throw s('ob_location_blocked');
   }
   final p = await Geolocator.getCurrentPosition(
-    locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 30)),
+    locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 30)),
   );
-  if (p.isMocked) throw 'A simulated location was detected. Turn off mock location and try again.';
+  if (p.isMocked) throw s('ob_mock_location');
   if (p.accuracy > kLocationAccuracyM) {
-    throw 'The location is only accurate to ${p.accuracy.round()} m. Step into the open at the temple and try again.';
+    throw s('ob_low_accuracy', {'m': p.accuracy.round()});
   }
   return LiveFix(p.latitude, p.longitude, p.accuracy);
 }
@@ -74,12 +77,14 @@ class _LiveLocationFieldState extends State<LiveLocationField> {
   bool _busy = false;
 
   Future<void> _capture() async {
+    final s = S.of(context);
     setState(() => _busy = true);
     try {
-      final fix = await currentFix();
+      final fix = await currentFix(s);
       widget.onChanged(fix);
     } catch (e) {
-      if (mounted) showMessage(context, e is String ? e : 'Could not read the location. Try again in the open.');
+      if (mounted)
+        showMessage(context, e is String ? e : s('ob_location_failed'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -88,37 +93,49 @@ class _LiveLocationFieldState extends State<LiveLocationField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     final v = widget.value;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(v == null ? Icons.location_searching : Icons.my_location, color: theme.colorScheme.primary),
+            Icon(v == null ? Icons.location_searching : Icons.my_location,
+                color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 v != null
                     ? '${v.latitude.toStringAsFixed(6)}, ${v.longitude.toStringAsFixed(6)} (±${v.accuracy.round()} m)'
-                    : widget.saved ?? (widget.required ? 'Location not recorded yet' : 'No location on file'),
+                    : widget.saved ??
+                        (widget.required
+                            ? s('ob_location_not_recorded')
+                            : s('ob_no_location')),
                 style: theme.textTheme.titleSmall,
               ),
             ),
           ]),
           const SizedBox(height: 6),
           Text(
-            'Stand at the temple and tap below. The location comes from your phone\'s GPS and must be accurate to ${kLocationAccuracyM.round()} m.',
+            s('ob_location_help', {'m': kLocationAccuracyM.round()}),
             style: theme.textTheme.bodySmall,
           ),
           if (widget.error != null) ...[
             const SizedBox(height: 6),
-            Text(widget.error!, style: TextStyle(color: theme.colorScheme.error)),
+            Text(widget.error!,
+                style: TextStyle(color: theme.colorScheme.error)),
           ],
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _busy ? null : _capture,
-            icon: _busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.gps_fixed),
-            label: Text(_busy ? 'Reading GPS…' : (v == null ? 'Use my current location' : 'Take it again')),
+            icon: _busy
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.gps_fixed),
+            label: Text(_busy
+                ? s('ob_reading_gps')
+                : (v == null ? s('ob_use_location') : s('ob_take_again'))),
           ),
         ]),
       ),

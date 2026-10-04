@@ -28,14 +28,22 @@ class _EventsScreenState extends State<EventsScreen> {
   final _list = GlobalKey<AsyncListState<Json>>();
 
   Future<List<Json>> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/events');
-    return [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()];
+    final res = await context
+        .read<Session>()
+        .api
+        .get('temples/${widget.templeId}/events');
+    return [
+      for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()
+    ];
   }
 
   Future<void> _approve(Json e) async {
     final s = S.of(context);
     try {
-      await context.read<Session>().api.post('temples/${widget.templeId}/events/${e['id']}/approve');
+      await context
+          .read<Session>()
+          .api
+          .post('temples/${widget.templeId}/events/${e['id']}/approve');
       if (!mounted) return;
       showMessage(context, s('event_approved'));
       _list.currentState?.reload();
@@ -51,16 +59,27 @@ class _EventsScreenState extends State<EventsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('${s('reject')}: ${e['title']}'),
-        content: TextField(controller: note, autofocus: true, maxLines: 3, decoration: InputDecoration(labelText: s('reject_reason'))),
+        content: TextField(
+            controller: note,
+            autofocus: true,
+            maxLines: 3,
+            decoration: InputDecoration(labelText: s('reject_reason'))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s('cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(context, note.text.trim().isNotEmpty), child: Text(s('reject'))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(s('cancel'))),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.pop(context, note.text.trim().isNotEmpty),
+              child: Text(s('reject'))),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     try {
-      await context.read<Session>().api.post('temples/${widget.templeId}/events/${e['id']}/reject', {'note': note.text.trim()});
+      await context.read<Session>().api.post(
+          'temples/${widget.templeId}/events/${e['id']}/reject',
+          {'note': note.text.trim()});
       if (!mounted) return;
       showMessage(context, s('event_rejected'));
       _list.currentState?.reload();
@@ -70,19 +89,26 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Future<void> _edit([Json? row]) async {
-    final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => EventForm(templeId: widget.templeId, row: row)));
+    final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => EventForm(templeId: widget.templeId, row: row)));
     if (saved == true) _list.currentState?.reload();
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Events & festivals')),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add event')),
+      appBar: AppBar(title: Text(s('events'))),
+      floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _edit(),
+          icon: const Icon(Icons.add),
+          label: Text(s('tp_add_event'))),
       body: AsyncList<Json>(
         key: _list,
         load: _load,
-        empty: 'No events yet. Add festivals, programs and announcements devotees should know about.',
+        empty: s('tp_events_empty'),
         itemBuilder: (context, e, reload) {
           final status = (e['status'] as Map?) ?? const {};
           final reg = (e['registration'] as Map?) ?? const {};
@@ -91,61 +117,117 @@ class _EventsScreenState extends State<EventsScreen> {
           final tertiary = Theme.of(context).colorScheme.tertiary;
           return Card(
             clipBehavior: Clip.antiAlias,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              ListTile(
-                leading: e['image_url'] == null
-                    ? IconBadge(e['type'] == 'bhajan' ? Icons.music_note_outlined : Icons.celebration_outlined, color: e['type'] == 'bhajan' ? Palette.sky : const Color(0xFFD1476B))
-                    : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network('${e['image_url']}', width: 48, height: 48, fit: BoxFit.cover)),
-                title: Text('${e['title']}'),
-                subtitle: Text([
-                  '${e['date_label']}',
-                  if (e['group_name'] != null) '${e['group_name']}',
-                  if (e['raised_by'] != null) S.of(context)('proposed_by', {'name': e['raised_by']}),
-                  if (e['review_note'] != null) 'Reason: ${e['review_note']}',
-                ].join('\n')),
-                isThreeLine: e['review_note'] != null || e['group_name'] != null || e['raised_by'] != null,
-                trailing: StatusChip.forStatus('${status['value']}', '${status['label'] ?? status['value']}'),
-                onTap: () => _edit(e),
-              ),
-              // Waiting for approval, and this person (the owner) decides.
-              if (e['can_review'] == true)
-                Container(
-                  color: Palette.gold.withValues(alpha: 0.12),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-                  child: Row(children: [
-                    const Icon(Icons.hourglass_top, size: 18, color: Palette.gold),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(S.of(context)('waiting_approval'), style: const TextStyle(fontWeight: FontWeight.w600))),
-                    TextButton(onPressed: () => _reject(e), child: Text(S.of(context)('reject'))),
-                    const SizedBox(width: 4),
-                    FilledButton(onPressed: () => _approve(e), child: Text(S.of(context)('approve'))),
-                  ]),
-                ),
-              if (e['type'] == 'bhajan' || e['recurrence'] == 'weekly' || joinable)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-                  child: Row(children: [
-                    Expanded(
-                      child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                        if (e['type'] == 'bhajan') StatusChip('Bhajan', color: tertiary),
-                        if (e['recurrence'] == 'weekly') const StatusChip('Every week'),
-                        if (joinable) StatusChip(reg['is_paid'] == true ? '${reg['price'] ?? 'Paid'}' : 'Free', color: const Color(0xFF2E7D55)),
-                        if (joinable)
-                          Text('${summary['going'] ?? reg['going'] ?? 0} going${summary['next_on'] != null ? ' on ${summary['next_on']}' : ''}', style: Theme.of(context).textTheme.bodySmall),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ListTile(
+                    leading: e['image_url'] == null
+                        ? IconBadge(
+                            e['type'] == 'bhajan'
+                                ? Icons.music_note_outlined
+                                : Icons.celebration_outlined,
+                            color: e['type'] == 'bhajan'
+                                ? Palette.sky
+                                : const Color(0xFFD1476B))
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network('${e['image_url']}',
+                                width: 48, height: 48, fit: BoxFit.cover)),
+                    title: Text('${e['title']}'),
+                    subtitle: Text([
+                      '${e['date_label']}',
+                      if (e['group_name'] != null) '${e['group_name']}',
+                      if (e['raised_by'] != null)
+                        s('proposed_by', {'name': e['raised_by']}),
+                      if (e['review_note'] != null)
+                        '${s('reason')}: ${e['review_note']}',
+                    ].join('\n')),
+                    isThreeLine: e['review_note'] != null ||
+                        e['group_name'] != null ||
+                        e['raised_by'] != null,
+                    trailing: StatusChip.forStatus('${status['value']}',
+                        '${status['label'] ?? status['value']}'),
+                    onTap: () => _edit(e),
+                  ),
+                  // Waiting for approval, and this person (the owner) decides.
+                  if (e['can_review'] == true)
+                    Container(
+                      color: Palette.gold.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                      child: Row(children: [
+                        const Icon(Icons.hourglass_top,
+                            size: 18, color: Palette.gold),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(s('waiting_approval'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600))),
+                        TextButton(
+                            onPressed: () => _reject(e),
+                            child: Text(s('reject'))),
+                        const SizedBox(width: 4),
+                        FilledButton(
+                            onPressed: () => _approve(e),
+                            child: Text(s('approve'))),
                       ]),
                     ),
-                    if (joinable)
-                      TextButton.icon(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => EventAttendeesScreen(templeId: widget.templeId, eventId: (e['id'] as num).toInt(), title: '${e['title']}')),
+                  if (e['type'] == 'bhajan' ||
+                      e['recurrence'] == 'weekly' ||
+                      joinable)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+                      child: Row(children: [
+                        Expanded(
+                          child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                if (e['type'] == 'bhajan')
+                                  StatusChip(s('tp_bhajan'), color: tertiary),
+                                if (e['recurrence'] == 'weekly')
+                                  StatusChip(s('tp_every_week')),
+                                if (joinable)
+                                  StatusChip(
+                                      reg['is_paid'] == true
+                                          ? '${reg['price'] ?? s('tp_paid')}'
+                                          : s('tp_free'),
+                                      color: const Color(0xFF2E7D55)),
+                                if (joinable)
+                                  Text(
+                                      summary['next_on'] != null
+                                          ? s('tp_n_going_on', {
+                                              'n': summary['going'] ??
+                                                  reg['going'] ??
+                                                  0,
+                                              'date': summary['next_on']
+                                            })
+                                          : s('tp_n_going', {
+                                              'n': summary['going'] ??
+                                                  reg['going'] ??
+                                                  0
+                                            }),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall),
+                              ]),
                         ),
-                        icon: const Icon(Icons.groups_outlined, size: 18),
-                        label: const Text('Attendees'),
-                      ),
-                  ]),
-                ),
-            ]),
+                        if (joinable)
+                          TextButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => EventAttendeesScreen(
+                                      templeId: widget.templeId,
+                                      eventId: (e['id'] as num).toInt(),
+                                      title: '${e['title']}')),
+                            ),
+                            icon: const Icon(Icons.groups_outlined, size: 18),
+                            label: Text(s('tp_attendees')),
+                          ),
+                      ]),
+                    ),
+                ]),
           );
         },
       ),
@@ -156,7 +238,11 @@ class _EventsScreenState extends State<EventsScreen> {
 /// Who is coming to an event on one of its dates: "I'll join" and tickets,
 /// with what they paid.
 class EventAttendeesScreen extends StatefulWidget {
-  const EventAttendeesScreen({super.key, required this.templeId, required this.eventId, required this.title});
+  const EventAttendeesScreen(
+      {super.key,
+      required this.templeId,
+      required this.eventId,
+      required this.title});
 
   final int templeId;
   final int eventId;
@@ -189,7 +275,11 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
     if (q.isEmpty) return true;
     final digits = q.replaceAll(RegExp(r'\D'), '');
     final phone = '${r['devotee_phone'] ?? ''}'.replaceAll(RegExp(r'\D'), '');
-    return '${r['devotee_name'] ?? ''}'.toLowerCase().contains(q) || '${r['reference'] ?? ''}'.toLowerCase().contains(q.replaceAll(' ', '')) || (digits.length >= 3 && phone.contains(digits));
+    return '${r['devotee_name'] ?? ''}'.toLowerCase().contains(q) ||
+        '${r['reference'] ?? ''}'
+            .toLowerCase()
+            .contains(q.replaceAll(' ', '')) ||
+        (digits.length >= 3 && phone.contains(digits));
   }
 
   static String _status(Json r) => '${(r['status'] as Map?)?['value']}';
@@ -199,14 +289,23 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
   /// Opens the full ticket, where the devotee is marked received.
   Future<void> _open(Json r) async {
     try {
-      final res = await context.read<Session>().api.get('bookings/search', {'q': '${r['reference']}'});
-      final full = [for (final x in (res['data'] as List? ?? const [])) (x as Map).cast<String, dynamic>()].where((x) => x['reference'] == r['reference']).firstOrNull;
+      final res = await context
+          .read<Session>()
+          .api
+          .get('bookings/search', {'q': '${r['reference']}'});
+      final full = [
+        for (final x in (res['data'] as List? ?? const []))
+          (x as Map).cast<String, dynamic>()
+      ].where((x) => x['reference'] == r['reference']).firstOrNull;
       if (!mounted) return;
       if (full == null) {
-        showMessage(context, 'Could not open this ticket.');
+        showMessage(context, S.of(context)('tp_ticket_open_failed'));
         return;
       }
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: full)));
+      await Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => BookingDetailScreen(booking: full)));
       if (mounted) _reload();
     } catch (e) {
       if (mounted) showError(context, e);
@@ -214,7 +313,9 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
   }
 
   Future<Json> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/events/${widget.eventId}/registrations', {'date': _date});
+    final res = await context.read<Session>().api.get(
+        'temples/${widget.templeId}/events/${widget.eventId}/registrations',
+        {'date': _date});
     return (res['data'] as Map).cast<String, dynamic>();
   }
 
@@ -224,18 +325,31 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
+      appBar:
+          AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return ErrorView(error: snap.error!, onRetry: _reload);
+          }
           final d = snap.data!;
           final date = '${d['date']}';
-          final dates = <String>{date, for (final x in (d['dates'] as List? ?? const [])) '$x'}.toList()..sort();
+          final dates = <String>{
+            date,
+            for (final x in (d['dates'] as List? ?? const [])) '$x'
+          }.toList()
+            ..sort();
           final s = (d['summary'] as Map?) ?? const {};
-          final items = [for (final r in (d['items'] as List? ?? const [])) (r as Map).cast<String, dynamic>()];
+          final items = [
+            for (final r in (d['items'] as List? ?? const []))
+              (r as Map).cast<String, dynamic>()
+          ];
           final theme = Theme.of(context);
           int n(String k) => (s[k] as num?)?.toInt() ?? 0;
 
@@ -253,8 +367,11 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: date,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Date'),
-                  items: [for (final x in dates) DropdownMenuItem(value: x, child: Text(x))],
+                  decoration: InputDecoration(labelText: t('tp_date')),
+                  items: [
+                    for (final x in dates)
+                      DropdownMenuItem(value: x, child: Text(x))
+                  ],
                   onChanged: (v) {
                     if (v == null || v == date) return;
                     _date = v;
@@ -267,19 +384,30 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(children: [
                       Row(children: [
-                        Expanded(child: Figure('Registrations', '${n('registrations')}', caption: '${n('received')} received')),
                         Expanded(
-                          child: Figure('People', '${n('people')}', caption: s['capacity'] == null ? 'no limit' : 'of ${s['capacity']}'),
+                            child: Figure(
+                                t('tp_registrations'), '${n('registrations')}',
+                                caption:
+                                    t('tp_n_received', {'n': n('received')}))),
+                        Expanded(
+                          child: Figure(t('people'), '${n('people')}',
+                              caption: s['capacity'] == null
+                                  ? t('tp_no_limit_lc')
+                                  : t('tp_of_n', {'n': s['capacity']})),
                         ),
                       ]),
                       const SizedBox(height: 12),
                       Row(children: [
-                        Expanded(child: Figure('Amount', '${s['amount'] ?? rupees(s['amount_paise'])}', emphasis: true, color: theme.colorScheme.primary)),
+                        Expanded(
+                            child: Figure(t('tp_amount'),
+                                '${s['amount'] ?? rupees(s['amount_paise'])}',
+                                emphasis: true,
+                                color: theme.colorScheme.primary)),
                       ]),
                     ]),
                   ),
                 ),
-                const SectionTitle('Who is coming'),
+                SectionTitle(t('tp_who_is_coming')),
                 if (items.isNotEmpty) ...[
                   TextField(
                     controller: _search,
@@ -287,7 +415,7 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
-                      hintText: 'Search name, mobile number or reference',
+                      hintText: t('search_bookings'),
                       isDense: true,
                       suffixIcon: _query.isEmpty
                           ? null
@@ -303,31 +431,56 @@ class _EventAttendeesScreenState extends State<EventAttendeesScreen> {
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, children: [
                     for (final (key, label) in [
-                      ('all', 'All ${items.length}'),
-                      ('waiting', 'Not yet ${items.where((r) => _live(r) && !_received(r)).length}'),
-                      ('received', 'Received ${items.where(_received).length}')
+                      ('all', t('tp_filter_all_n', {'n': items.length})),
+                      (
+                        'waiting',
+                        t('tp_filter_not_yet_n', {
+                          'n': items
+                              .where((r) => _live(r) && !_received(r))
+                              .length
+                        })
+                      ),
+                      (
+                        'received',
+                        t('tp_filter_received_n',
+                            {'n': items.where(_received).length})
+                      )
                     ])
-                      ChoiceChip(label: Text(label), selected: _show == key, onSelected: (_) => setState(() => _show = key)),
+                      ChoiceChip(
+                          label: Text(label),
+                          selected: _show == key,
+                          onSelected: (_) => setState(() => _show = key)),
                   ]),
                   const SizedBox(height: 8),
                 ],
-                if (items.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: Text('No one has joined for this date yet.', textAlign: TextAlign.center)),
+                if (items.isEmpty)
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Text(t('tp_no_one_joined'),
+                          textAlign: TextAlign.center)),
                 if (items.isNotEmpty && !items.any(_matches))
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text(_query.isEmpty ? 'No one in this list.' : 'No one matches "$_query" on this date. Try another date, or Find a booking for all dates.', textAlign: TextAlign.center),
+                    child: Text(
+                        _query.isEmpty
+                            ? t('tp_no_one_in_list')
+                            : t('tp_no_one_matches', {'q': _query}),
+                        textAlign: TextAlign.center),
                   ),
                 for (final r in items.where(_matches))
                   Card(
                     child: ListTile(
                       onTap: () => _open(r),
-                      title: Text('${r['devotee_name'] ?? 'Devotee'} · ${r['people']} ${r['people'] == 1 ? 'person' : 'people'}'),
+                      title: Text(
+                          '${r['devotee_name'] ?? t('tp_devotee')} · ${t.people((r['people'] as num?)?.toInt() ?? 0)}'),
                       subtitle: Text([
                         if (r['devotee_phone'] != null) '${r['devotee_phone']}',
                         '${r['amount'] ?? rupees(r['amount_paise'])}',
-                        'Ref ${r['reference']}',
+                        t('tp_ref', {'ref': r['reference']}),
                       ].join(' · ')),
-                      trailing: StatusChip.forStatus('${(r['status'] as Map?)?['value']}', '${(r['status'] as Map?)?['label'] ?? ''}'),
+                      trailing: StatusChip.forStatus(
+                          '${(r['status'] as Map?)?['value']}',
+                          '${(r['status'] as Map?)?['label'] ?? ''}'),
                     ),
                   ),
               ],
@@ -351,21 +504,33 @@ class EventForm extends StatefulWidget {
 
 class _EventFormState extends State<EventForm> {
   late final _title = TextEditingController(text: widget.row?['title'] ?? '');
-  late final _description = TextEditingController(text: widget.row?['description'] ?? '');
+  late final _description =
+      TextEditingController(text: widget.row?['description'] ?? '');
   late String _type = '${widget.row?['type'] ?? 'festival'}';
-  late DateTime? _from = DateTime.tryParse('${widget.row?['starts_on']}') ?? DateTime.now();
-  late DateTime? _to = widget.row == null ? null : DateTime.tryParse('${widget.row?['ends_on']}');
+  late DateTime? _from =
+      DateTime.tryParse('${widget.row?['starts_on']}') ?? DateTime.now();
+  late DateTime? _to = widget.row == null
+      ? null
+      : DateTime.tryParse('${widget.row?['ends_on']}');
   late bool _allDay = widget.row?['is_all_day'] ?? true;
   late TimeOfDay? _startsAt = parseTime(widget.row?['starts_at']);
   late TimeOfDay? _endsAt = parseTime(widget.row?['ends_at']);
   late String _recurrence = '${widget.row?['recurrence'] ?? 'none'}';
-  late bool _publish = ((widget.row?['status'] as Map?)?['value'] ?? 'published') != 'draft';
-  Json get _reg => (widget.row?['registration'] as Map?)?.cast<String, dynamic>() ?? const {};
-  late final _groupName = TextEditingController(text: widget.row?['group_name'] as String? ?? '');
-  late final _price = TextEditingController(text: _priceText(widget.row?['ticket_price']));
-  late final _capacity = TextEditingController(text: _reg['capacity']?.toString() ?? '');
-  late final _maxPeople = TextEditingController(text: '${_reg['max_people'] ?? 10}');
-  late final _songs = TextEditingController(text: widget.row?['songs_text'] as String? ?? '');
+  late bool _publish =
+      ((widget.row?['status'] as Map?)?['value'] ?? 'published') != 'draft';
+  Json get _reg =>
+      (widget.row?['registration'] as Map?)?.cast<String, dynamic>() ??
+      const {};
+  late final _groupName =
+      TextEditingController(text: widget.row?['group_name'] as String? ?? '');
+  late final _price =
+      TextEditingController(text: _priceText(widget.row?['ticket_price']));
+  late final _capacity =
+      TextEditingController(text: _reg['capacity']?.toString() ?? '');
+  late final _maxPeople =
+      TextEditingController(text: '${_reg['max_people'] ?? 10}');
+  late final _songs =
+      TextEditingController(text: widget.row?['songs_text'] as String? ?? '');
   late final bool _hadSongs = _songs.text.trim().isNotEmpty;
   late bool _openToAll = widget.row?['open_to_all'] ?? true;
   late bool _registration = _reg['enabled'] == true;
@@ -376,7 +541,15 @@ class _EventFormState extends State<EventForm> {
 
   @override
   void dispose() {
-    for (final c in [_title, _description, _groupName, _price, _capacity, _maxPeople, _songs]) {
+    for (final c in [
+      _title,
+      _description,
+      _groupName,
+      _price,
+      _capacity,
+      _maxPeople,
+      _songs
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -388,7 +561,9 @@ class _EventFormState extends State<EventForm> {
       _error = null;
     });
     final api = context.read<Session>().api;
-    final path = widget.row == null ? 'temples/${widget.templeId}/events' : 'temples/${widget.templeId}/events/${widget.row!['id']}';
+    final path = widget.row == null
+        ? 'temples/${widget.templeId}/events'
+        : 'temples/${widget.templeId}/events/${widget.row!['id']}';
     try {
       final res = await api.multipart(path, fields: {
         'type': _type,
@@ -412,11 +587,17 @@ class _EventFormState extends State<EventForm> {
         'status': _publish ? 'published' : 'draft',
         'remove_image': _removeImage,
       }, files: [
-        if (_image != null) UploadFile(field: 'image', filename: _image!.name, bytes: await _image!.readAsBytes()),
+        if (_image != null)
+          UploadFile(
+              field: 'image',
+              filename: _image!.name,
+              bytes: await _image!.readAsBytes()),
       ]);
       if (!mounted) return;
       final status = ((res['data'] as Map?)?['status'] as Map?)?['value'];
-      if (status == 'pending_review') showMessage(context, 'Sent for approval. It goes live once the temple\'s owner approves it.');
+      if (status == 'pending_review') {
+        showMessage(context, S.of(context)('tp_event_sent_for_approval'));
+      }
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
@@ -428,13 +609,21 @@ class _EventFormState extends State<EventForm> {
     }
   }
 
-  String? _v(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+  String? _v(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : c.text.trim();
 
   Future<void> _delete() async {
-    if (!await confirm(context, 'Delete this event?', body: 'If devotees have tickets for it, set it back to draft instead.')) return;
+    final s = S.of(context);
+    if (!await confirm(context, s('tp_delete_event_q'),
+        body: s('tp_delete_event_body'), action: s('tp_delete'))) {
+      return;
+    }
     if (!mounted) return;
     try {
-      await context.read<Session>().api.delete('temples/${widget.templeId}/events/${widget.row!['id']}');
+      await context
+          .read<Session>()
+          .api
+          .delete('temples/${widget.templeId}/events/${widget.row!['id']}');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -443,46 +632,99 @@ class _EventFormState extends State<EventForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final o = context.watch<Session>().options;
     // Older servers may not list bhajan gatherings yet.
-    final types = [...o.eventTypes, if (!o.eventTypes.any((t) => t.value == 'bhajan')) const Option('bhajan', 'Bhajan gathering')];
-    final weekday = _from == null ? null : _weekdayNames[_from!.weekday - 1];
+    final types = [
+      ...o.eventTypes,
+      if (!o.eventTypes.any((t) => t.value == 'bhajan'))
+        Option('bhajan', s('tp_bhajan_gathering'))
+    ];
+    final weekday = _from == null ? null : s(_weekdayKeys[_from!.weekday - 1]);
     final existingImage = widget.row?['image_url'];
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.row == null ? 'New event' : 'Edit event'),
-        actions: [if (widget.row != null) IconButton(onPressed: _delete, icon: const Icon(Icons.delete_outline))],
+        title:
+            Text(widget.row == null ? s('tp_new_event') : s('tp_edit_event')),
+        actions: [
+          if (widget.row != null)
+            IconButton(
+                onPressed: _delete, icon: const Icon(Icons.delete_outline))
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          OptionField(label: 'Type', options: types, value: _type, onChanged: (v) => setState(() => _type = '$v')),
+          OptionField(
+              label: s('tp_type'),
+              options: types,
+              value: _type,
+              onChanged: (v) => setState(() => _type = '$v')),
           const SizedBox(height: 12),
-          ApiTextField(controller: _title, label: 'Title', field: 'title', error: _error, required: true),
-          ApiTextField(controller: _description, label: 'Description', field: 'description', error: _error, maxLines: 5),
+          ApiTextField(
+              controller: _title,
+              label: s('tp_title'),
+              field: 'title',
+              error: _error,
+              required: true),
+          ApiTextField(
+              controller: _description,
+              label: s('tp_description'),
+              field: 'description',
+              error: _error,
+              maxLines: 5),
           ApiTextField(
             controller: _groupName,
-            label: _type == 'bhajan' ? 'Bhajan mandali' : 'Group or organiser (optional)',
+            label: _type == 'bhajan'
+                ? s('tp_bhajan_mandali')
+                : s('tp_group_organiser'),
             field: 'group_name',
             error: _error,
-            hint: 'e.g. Sri Rama Bhajan Mandali',
+            hint: s('tp_group_hint'),
           ),
           Row(children: [
-            Expanded(child: DateField(label: 'From', value: _from, onChanged: (d) => setState(() => _from = d))),
+            Expanded(
+                child: DateField(
+                    label: s('tp_from'),
+                    value: _from,
+                    onChanged: (d) => setState(() => _from = d))),
             const SizedBox(width: 12),
-            Expanded(child: DateField(label: _recurrence == 'weekly' ? 'Last date (optional)' : 'To (optional)', value: _to, clearable: true, onChanged: (d) => setState(() => _to = d))),
+            Expanded(
+                child: DateField(
+                    label: _recurrence == 'weekly'
+                        ? s('tp_last_date_optional')
+                        : s('tp_to_optional'),
+                    value: _to,
+                    clearable: true,
+                    onChanged: (d) => setState(() => _to = d))),
           ]),
-          SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('All day'), value: _allDay, onChanged: (v) => setState(() => _allDay = v)),
+          SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(s('tp_all_day')),
+              value: _allDay,
+              onChanged: (v) => setState(() => _allDay = v)),
           if (!_allDay)
             Row(children: [
-              Expanded(child: TimeField(label: 'Starts', value: _startsAt, onChanged: (t) => setState(() => _startsAt = t))),
+              Expanded(
+                  child: TimeField(
+                      label: s('tp_starts'),
+                      value: _startsAt,
+                      onChanged: (t) => setState(() => _startsAt = t))),
               const SizedBox(width: 12),
-              Expanded(child: TimeField(label: 'Ends', value: _endsAt, onChanged: (t) => setState(() => _endsAt = t))),
+              Expanded(
+                  child: TimeField(
+                      label: s('tp_ends'),
+                      value: _endsAt,
+                      onChanged: (t) => setState(() => _endsAt = t))),
             ]),
           const SizedBox(height: 12),
           OptionField(
-            label: 'Repeats',
-            options: const [Option('none', 'One-off'), Option('weekly', 'Every week'), Option('yearly', 'Every year on these dates')],
+            label: s('tp_repeats'),
+            options: [
+              Option('none', s('tp_one_off')),
+              Option('weekly', s('tp_every_week')),
+              Option('yearly', s('tp_every_year'))
+            ],
             value: _recurrence,
             onChanged: (v) => setState(() => _recurrence = '$v'),
           ),
@@ -490,54 +732,80 @@ class _EventFormState extends State<EventForm> {
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Text(
               _recurrence == 'weekly'
-                  ? 'Repeats every ${weekday ?? 'week'}, the weekday of the start date. The last date ends the series; leave it empty to keep it going.'
-                  : 'Festivals on the lunar calendar move each year; add those as separate entries.',
+                  ? s('tp_repeats_weekly_note',
+                      {'day': weekday ?? s('tp_week')})
+                  : s('tp_lunar_note'),
               style: const TextStyle(fontSize: 12),
             ),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Open to all'),
-            subtitle: const Text('Anyone may come, not only members.'),
+            title: Text(s('tp_open_to_all')),
+            subtitle: Text(s('tp_open_to_all_hint')),
             value: _openToAll,
             onChanged: (v) => setState(() => _openToAll = v),
           ),
-          const SectionTitle('Joining in the app'),
+          SectionTitle(s('tp_joining_in_app')),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Devotees can join in the app'),
-            subtitle: const Text('Free: they tap "I\'ll join". With a price: they buy tickets, shown at the counter as a QR code.'),
+            title: Text(s('tp_can_join_in_app')),
+            subtitle: Text(s('tp_can_join_hint')),
             value: _registration,
             onChanged: (v) => setState(() => _registration = v),
           ),
           if (_registration) ...[
             ApiTextField(
               controller: _price,
-              label: 'Ticket price per person (₹)',
+              label: s('tp_ticket_price'),
               field: 'ticket_price',
               error: _error,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              hint: 'Empty or 0 for free',
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              hint: s('tp_ticket_price_hint'),
             ),
-            ApiTextField(controller: _capacity, label: 'People per date (empty for no limit)', field: 'capacity', error: _error, keyboardType: TextInputType.number),
-            ApiTextField(controller: _maxPeople, label: 'Most people per registration', field: 'max_people_per_registration', error: _error, keyboardType: TextInputType.number),
+            ApiTextField(
+                controller: _capacity,
+                label: s('tp_capacity_per_date'),
+                field: 'capacity',
+                error: _error,
+                keyboardType: TextInputType.number),
+            ApiTextField(
+                controller: _maxPeople,
+                label: s('tp_max_people_registration'),
+                field: 'max_people_per_registration',
+                error: _error,
+                keyboardType: TextInputType.number),
           ],
           if (_type == 'bhajan' || _hadSongs) ...[
-            const SectionTitle('Songs'),
-            ApiTextField(controller: _songs, label: 'Songs', field: 'songs', error: _error, maxLines: 8, hint: 'One song per line'),
+            SectionTitle(s('tp_songs')),
+            ApiTextField(
+                controller: _songs,
+                label: s('tp_songs'),
+                field: 'songs',
+                error: _error,
+                maxLines: 8,
+                hint: s('tp_songs_hint')),
           ],
-          const SectionTitle('Image'),
+          SectionTitle(s('tp_image')),
           Row(children: [
             if (_image != null)
-              Expanded(child: Text(_image!.name, overflow: TextOverflow.ellipsis))
+              Expanded(
+                  child: Text(_image!.name, overflow: TextOverflow.ellipsis))
             else if (existingImage != null && !_removeImage)
-              Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network('$existingImage', height: 120, fit: BoxFit.cover)))
+              Expanded(
+                  child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network('$existingImage',
+                          height: 120, fit: BoxFit.cover)))
             else
-              const Expanded(child: Text('No image')),
+              Expanded(child: Text(s('tp_no_image'))),
             IconButton(
               icon: const Icon(Icons.add_photo_alternate_outlined),
               onPressed: () async {
-                final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 2000);
+                final f = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                    maxWidth: 2000);
                 if (f != null) setState(() => _image = f);
               },
             ),
@@ -549,23 +817,33 @@ class _EventFormState extends State<EventForm> {
                         _removeImage = existingImage != null;
                       })),
           ]),
-          const SectionTitle('Publishing'),
+          SectionTitle(s('tp_publishing')),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Publish'),
-            subtitle: const Text('Unless your temple is verified, the editors review it before devotees see it.'),
+            title: Text(s('tp_publish')),
+            subtitle: Text(s('tp_publish_hint')),
             value: _publish,
             onChanged: (v) => setState(() => _publish = v),
           ),
           const SizedBox(height: 12),
-          FilledButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Saving…' : 'Save')),
+          FilledButton(
+              onPressed: _busy ? null : _save,
+              child: Text(_busy ? s('saving') : s('save'))),
         ],
       ),
     );
   }
 }
 
-const _weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const _weekdayKeys = [
+  'tp_monday',
+  'tp_tuesday',
+  'tp_wednesday',
+  'tp_thursday',
+  'tp_friday',
+  'tp_saturday',
+  'tp_sunday'
+];
 
 /// The editor's rupee price as typed: 100 rather than 100.0, empty when free.
 String _priceText(dynamic v) {

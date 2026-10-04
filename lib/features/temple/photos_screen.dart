@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/models.dart';
 import '../../core/photo_crop.dart';
 import '../../core/session.dart';
@@ -25,8 +26,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
   bool _uploading = false;
 
   Future<List<Json>> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/photos');
-    return [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()];
+    final res = await context
+        .read<Session>()
+        .api
+        .get('temples/${widget.templeId}/photos');
+    return [
+      for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()
+    ];
   }
 
   void _reload() => setState(() {
@@ -35,16 +41,23 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   Future<void> _upload() async {
     final session = context.read<Session>();
+    final s = S.of(context);
     final categories = session.options.photoCategories;
-    final picked = await ImagePicker().pickMultiImage(imageQuality: 90, maxWidth: 3000);
+    final picked =
+        await ImagePicker().pickMultiImage(imageQuality: 90, maxWidth: 3000);
     if (picked.isEmpty || !mounted) return;
 
     final category = await showDialog<String>(
       context: context,
       builder: (c) => SimpleDialog(
-        title: const Text('What do these show?'),
+        title: Text(s('tp_photos_category_q')),
         children: [
-          for (final o in categories.isEmpty ? const [Option('gallery', 'Gallery')] : categories) SimpleDialogOption(onPressed: () => Navigator.pop(c, '${o.value}'), child: Text(o.label)),
+          for (final o in categories.isEmpty
+              ? [Option('gallery', s('tp_gallery'))]
+              : categories)
+            SimpleDialogOption(
+                onPressed: () => Navigator.pop(c, '${o.value}'),
+                child: Text(o.label)),
         ],
       ),
     );
@@ -54,7 +67,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final cropped = <CroppedPhoto>[];
     for (final (i, f) in picked.indexed) {
       if (!mounted) return;
-      final c = await cropPhoto(context, f, title: picked.length == 1 ? 'Crop photo' : 'Crop photo ${i + 1} of ${picked.length}');
+      final c = await cropPhoto(context, f,
+          title: picked.length == 1
+              ? s('tp_crop_photo')
+              : s('tp_crop_photo_n', {'i': i + 1, 'n': picked.length}));
       if (c != null) cropped.add(c);
     }
     if (cropped.isEmpty || !mounted) return;
@@ -63,7 +79,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
     var done = 0;
     try {
       for (final c in cropped) {
-        await session.api.multipart('temples/${widget.templeId}/photos', fields: {'category': category}, files: [UploadFile(field: 'photo', filename: c.filename, bytes: c.bytes)]);
+        await session.api.multipart('temples/${widget.templeId}/photos',
+            fields: {
+              'category': category
+            },
+            files: [
+              UploadFile(field: 'photo', filename: c.filename, bytes: c.bytes)
+            ]);
         done++;
       }
     } on ApiException catch (e) {
@@ -71,29 +93,50 @@ class _PhotosScreenState extends State<PhotosScreen> {
     } finally {
       if (mounted) {
         setState(() => _uploading = false);
-        if (done > 0) showMessage(context, '$done photo${done == 1 ? '' : 's'} uploaded.');
+        if (done > 0) {
+          showMessage(
+              context,
+              done == 1
+                  ? s('tp_photo_uploaded_one')
+                  : s('tp_photos_uploaded_n', {'n': done}));
+        }
         _reload();
       }
     }
   }
 
   Future<void> _options(Json p) async {
+    final s = S.of(context);
     if (p['is_devotee_photo'] == true) {
-      showMessage(context, 'Shared by a devotee. Raise an objection from the temple portal if it should not be shown.');
+      showMessage(context, s('tp_devotee_photo_note'));
       return;
     }
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (p['is_primary'] != true) ListTile(leading: const Icon(Icons.star_outline), title: const Text('Make cover photo'), onTap: () => Navigator.pop(c, 'primary')),
+          if (p['is_primary'] != true)
+            ListTile(
+                leading: const Icon(Icons.star_outline),
+                title: Text(s('tp_make_cover')),
+                onTap: () => Navigator.pop(c, 'primary')),
           ListTile(
-            leading: Icon(p['is_published'] == true ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-            title: Text(p['is_published'] == true ? 'Hide from devotees' : 'Show to devotees'),
+            leading: Icon(p['is_published'] == true
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined),
+            title: Text(p['is_published'] == true
+                ? s('tp_hide_from_devotees')
+                : s('tp_show_to_devotees')),
             onTap: () => Navigator.pop(c, 'toggle'),
           ),
-          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit caption'), onTap: () => Navigator.pop(c, 'caption')),
-          ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete'), onTap: () => Navigator.pop(c, 'delete')),
+          ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(s('tp_edit_caption')),
+              onTap: () => Navigator.pop(c, 'caption')),
+          ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: Text(s('tp_delete')),
+              onTap: () => Navigator.pop(c, 'delete')),
         ]),
       ),
     );
@@ -111,15 +154,24 @@ class _PhotosScreenState extends State<PhotosScreen> {
           final v = await showDialog<String>(
             context: context,
             builder: (d) => AlertDialog(
-              title: const Text('Caption'),
+              title: Text(s('tp_caption')),
               content: TextField(controller: c, autofocus: true),
-              actions: [FilledButton(onPressed: () => Navigator.pop(d, c.text), child: const Text('Save'))],
+              actions: [
+                FilledButton(
+                    onPressed: () => Navigator.pop(d, c.text),
+                    child: Text(s('save')))
+              ],
             ),
           );
           if (v == null) return;
-          await api.patch(path, {'caption': v.trim().isEmpty ? null : v.trim()});
+          await api
+              .patch(path, {'caption': v.trim().isEmpty ? null : v.trim()});
         case 'delete':
-          if (!mounted || !await confirm(context, 'Delete this photo?')) return;
+          if (!mounted ||
+              !await confirm(context, s('tp_delete_photo_q'),
+                  action: s('tp_delete'))) {
+            return;
+          }
           await api.delete(path);
       }
       _reload();
@@ -130,21 +182,33 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Photos')),
+      appBar: AppBar(title: Text(s('photos'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _uploading ? null : _upload,
-        icon: _uploading ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.add_a_photo_outlined),
-        label: Text(_uploading ? 'Uploading…' : 'Upload'),
+        icon: _uploading
+            ? const SizedBox.square(
+                dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.add_a_photo_outlined),
+        label: Text(_uploading ? s('uploading') : s('tp_upload')),
       ),
       body: FutureBuilder<List<Json>>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return ErrorView(error: snap.error!, onRetry: _reload);
+          }
           final photos = snap.data!;
           if (photos.isEmpty) {
-            return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No photos yet. The first one you upload becomes the cover.', textAlign: TextAlign.center)));
+            return Center(
+                child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(s('tp_photos_empty'),
+                        textAlign: TextAlign.center)));
           }
           return RefreshIndicator(
             onRefresh: () async {
@@ -156,7 +220,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
             child: GridView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 180, mainAxisSpacing: 8, crossAxisSpacing: 8),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 180,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8),
               itemCount: photos.length,
               itemBuilder: (context, i) {
                 final p = photos[i];
@@ -166,16 +233,22 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Stack(fit: StackFit.expand, children: [
-                      Image.network('${urls['thumbnail'] ?? urls['medium'] ?? urls['original']}',
-                          fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black12, child: Icon(Icons.image_not_supported_outlined))),
-                      if (p['is_published'] != true) const ColoredBox(color: Color(0x88000000)),
+                      Image.network(
+                          '${urls['thumbnail'] ?? urls['medium'] ?? urls['original']}',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const ColoredBox(
+                              color: Colors.black12,
+                              child: Icon(Icons.image_not_supported_outlined))),
+                      if (p['is_published'] != true)
+                        const ColoredBox(color: Color(0x88000000)),
                       Positioned(
                         left: 6,
                         top: 6,
                         child: Wrap(spacing: 4, children: [
-                          if (p['is_primary'] == true) const _Badge('Cover'),
-                          if (p['is_published'] != true) const _Badge('Hidden'),
-                          if (p['is_devotee_photo'] == true) const _Badge('Devotee'),
+                          if (p['is_primary'] == true) _Badge(s('tp_cover')),
+                          if (p['is_published'] != true) _Badge(s('tp_hidden')),
+                          if (p['is_devotee_photo'] == true)
+                            _Badge(s('tp_devotee')),
                         ]),
                       ),
                     ]),
@@ -199,8 +272,11 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
-      child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+          color: Colors.black54, borderRadius: BorderRadius.circular(6)),
+      child: Text(text,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/l10n.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -15,7 +16,8 @@ typedef Json = Map<String, dynamic>;
 /// The code is signed by the server, so one copied for another temple does
 /// not verify. The printable A4 poster opens on the web.
 class TempleQrScreen extends StatefulWidget {
-  const TempleQrScreen({super.key, required this.templeId, required this.title});
+  const TempleQrScreen(
+      {super.key, required this.templeId, required this.title});
 
   final int templeId;
   final String title;
@@ -32,20 +34,25 @@ class _TempleQrScreenState extends State<TempleQrScreen> {
   }
 
   Future<Json> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/qr');
+    final res =
+        await context.read<Session>().api.get('temples/${widget.templeId}/qr');
     return (res['data'] as Map).cast<String, dynamic>();
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Temple QR code')),
+      appBar: AppBar(title: Text(s('temple_qr'))),
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (snap.hasError) {
-            return ErrorView(error: snap.error!, onRetry: () => setState(() => _retry()));
+            return ErrorView(
+                error: snap.error!, onRetry: () => setState(() => _retry()));
           }
           final q = snap.data!;
           final url = '${q['url']}';
@@ -53,9 +60,11 @@ class _TempleQrScreenState extends State<TempleQrScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
             children: [
-              Text(widget.title, textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+              Text(widget.title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge),
               const SizedBox(height: 4),
-              const Text('Check in with Darshan Saathi', textAlign: TextAlign.center),
+              Text(s('tp_qr_check_in'), textAlign: TextAlign.center),
               const SizedBox(height: 16),
               Center(
                 child: Container(
@@ -63,40 +72,55 @@ class _TempleQrScreenState extends State<TempleQrScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Palette.gold.withValues(alpha: 0.6), width: 2),
+                    border: Border.all(
+                        color: Palette.gold.withValues(alpha: 0.6), width: 2),
                     boxShadow: TrustStyle.of(context).cardShadow,
                   ),
-                  child: QrImageView(data: url, size: 250, backgroundColor: Colors.white, eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Palette.deep), dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Palette.deep), semanticsLabel: 'Check-in code for ${widget.title}'),
+                  child: QrImageView(
+                      data: url,
+                      size: 250,
+                      backgroundColor: Colors.white,
+                      eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square, color: Palette.deep),
+                      dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Palette.deep),
+                      semanticsLabel:
+                          s('tp_qr_semantics', {'name': widget.title})),
                 ),
               ),
               if (q['is_published'] != true)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text('Your temple is not published yet: devotees can collect its stamp once it is.', textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
+                  child: Text(s('tp_qr_not_published'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: theme.colorScheme.error)),
                 ),
               const SizedBox(height: 16),
-              const Text(
-                'Display this at the gate or the counter. Devotees scan it with the Darshan Saathi app to collect your temple\'s stamp in their passport. '
-                'It is signed for your temple: a copy for any other temple does not verify.',
+              Text(
+                s('tp_qr_display_note'),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: () => launchUrl(Uri.parse('${q['print_url']}'), mode: LaunchMode.externalApplication),
+                onPressed: () => launchUrl(Uri.parse('${q['print_url']}'),
+                    mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.print_outlined),
-                label: const Text('Print the A4 poster'),
+                label: Text(s('tp_qr_print')),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: url));
-                  if (context.mounted) showMessage(context, 'Link copied.');
+                  if (context.mounted) {
+                    showMessage(context, s('tp_link_copied'));
+                  }
                 },
                 icon: const Icon(Icons.link),
-                label: const Text('Copy the link'),
+                label: Text(s('tp_copy_link')),
               ),
               const SizedBox(height: 8),
-              const Text('The poster opens in your browser; sign in with the same email and password if it asks.', textAlign: TextAlign.center),
+              Text(s('tp_qr_poster_note'), textAlign: TextAlign.center),
             ],
           );
         },

@@ -8,29 +8,16 @@ import '../../core/widgets.dart';
 /// far their pilgrimage has gone, and their latest visits, so the person at
 /// the counter can tell they have the right devotee in front of them.
 class PassportCard extends StatelessWidget {
-  const PassportCard({super.key, required this.passport, required this.templeIds});
+  const PassportCard(
+      {super.key, required this.passport, required this.templeIds});
 
   final Map<String, dynamic> passport;
   final Set<int> templeIds;
 
-  static String _date(String? iso) {
+  static String _date(S s, String? iso) {
     final d = iso == null ? null : DateTime.tryParse(iso);
     if (d == null) return '';
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
+    return '${d.day} ${s('mn_mon_${d.month}')} ${d.year}';
   }
 
   @override
@@ -38,7 +25,7 @@ class PassportCard extends StatelessWidget {
     final s = S.of(context);
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    final name = '${passport['name'] ?? 'Devotee'}';
+    final name = '${passport['name'] ?? s('mn_devotee')}';
     final avatar = passport['avatar_url'] is String &&
             '${passport['avatar_url']}'.isNotEmpty
         ? '${passport['avatar_url']}'
@@ -99,7 +86,7 @@ class PassportCard extends StatelessWidget {
                     if (passport['joined_at'] != null)
                       Text(
                           s('pp_since',
-                              {'date': _date('${passport['joined_at']}')}),
+                              {'date': _date(s, '${passport['joined_at']}')}),
                           style: const TextStyle(
                               color: Colors.white70, fontSize: 12)),
                   ]),
@@ -126,7 +113,7 @@ class PassportCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                   child: Text(s('pp_here_before',
-                      {'date': _date('${hereBefore['visited_on']}')}))),
+                      {'date': _date(s, '${hereBefore['visited_on']}')}))),
             ]),
           ),
         Padding(
@@ -160,7 +147,7 @@ class PassportCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Text(_date('${v['visited_on']}'),
+                  Text(_date(s, '${v['visited_on']}'),
                       style: theme.textTheme.bodySmall),
                 ]),
               ),

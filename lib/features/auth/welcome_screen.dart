@@ -33,7 +33,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           top: 0,
           height: 300 + top,
           child: const DecoratedBox(
-            decoration: BoxDecoration(gradient: Palette.kumkumGradient, borderRadius: BorderRadius.vertical(bottom: Radius.circular(40))),
+            decoration: BoxDecoration(
+                gradient: Palette.kumkumGradient,
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(40))),
           ),
         ),
         Positioned(right: -60, top: -40, child: _ring(220)),
@@ -45,7 +48,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                 children: [
-                  Align(alignment: Alignment.centerRight, child: LanguageButton(color: Colors.white.withValues(alpha: 0.95))),
+                  Align(
+                      alignment: Alignment.centerRight,
+                      child: LanguageButton(
+                          color: Colors.white.withValues(alpha: 0.95))),
                   const SizedBox(height: 18),
                   Center(
                     child: Container(
@@ -53,39 +59,74 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(26),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 22, offset: const Offset(0, 8))],
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 22,
+                              offset: const Offset(0, 8))
+                        ],
                       ),
-                      child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Image.asset('assets/brand/logo.png', width: 92, height: 92, semanticLabel: Brand.appName)),
+                      child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset('assets/brand/logo.png',
+                              width: 92,
+                              height: 92,
+                              semanticLabel: Brand.appName)),
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Text(Brand.appName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontFamily: TrustTheme.serif, fontSize: 27, fontWeight: FontWeight.w600)),
+                  Text(Brand.appName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: TrustTheme.serif,
+                          fontSize: 27,
+                          fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(s('welcome_for'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
-                  Text(Brand.tagline, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
+                  Text(s('welcome_for'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13.5)),
+                  Text(s('ob_tagline', {'name': Brand.name}),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13.5)),
                   const SizedBox(height: 28),
                   Container(
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(28), boxShadow: TrustStyle.of(context).cardShadow),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: TrustStyle.of(context).cardShadow),
                     child: Material(
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(28),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          SegmentedButton<bool>(
-                            segments: [
-                              ButtonSegment(value: false, label: Text(s('sign_in')), icon: const Icon(Icons.login)),
-                              ButtonSegment(value: true, label: Text(s('create_account')), icon: const Icon(Icons.person_add_alt)),
-                            ],
-                            selected: {_register},
-                            onSelectionChanged: (v) => setState(() => _register = v.first),
-                          ),
-                          const SizedBox(height: 20),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            child: _register ? const _RegisterForm(key: ValueKey('r')) : const _LoginForm(key: ValueKey('l')),
-                          ),
-                        ]),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SegmentedButton<bool>(
+                                segments: [
+                                  ButtonSegment(
+                                      value: false,
+                                      label: Text(s('sign_in')),
+                                      icon: const Icon(Icons.login)),
+                                  ButtonSegment(
+                                      value: true,
+                                      label: Text(s('create_account')),
+                                      icon: const Icon(Icons.person_add_alt)),
+                                ],
+                                selected: {_register},
+                                onSelectionChanged: (v) =>
+                                    setState(() => _register = v.first),
+                              ),
+                              const SizedBox(height: 20),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                child: _register
+                                    ? const _RegisterForm(key: ValueKey('r'))
+                                    : const _LoginForm(key: ValueKey('l')),
+                              ),
+                            ]),
                       ),
                     ),
                   ),
@@ -102,7 +143,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         child: Container(
           width: size,
           height: size,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 18)),
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1), width: 18)),
         ),
       );
 }
@@ -152,16 +196,43 @@ class _LoginFormState extends State<_LoginForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ApiTextField(controller: _email, label: s('email'), field: 'email', error: _error, keyboardType: TextInputType.emailAddress, required: true, autofillHints: const [AutofillHints.email], prefixIcon: Icons.mail_outline),
-            ApiTextField(controller: _password, label: s('password'), field: 'password', error: _error, obscure: true, required: true, autofillHints: const [AutofillHints.password], prefixIcon: Icons.lock_outline),
+            ApiTextField(
+                controller: _email,
+                label: s('email'),
+                field: 'email',
+                error: _error,
+                keyboardType: TextInputType.emailAddress,
+                required: true,
+                autofillHints: const [AutofillHints.email],
+                prefixIcon: Icons.mail_outline),
+            ApiTextField(
+                controller: _password,
+                label: s('password'),
+                field: 'password',
+                error: _error,
+                obscure: true,
+                required: true,
+                autofillHints: const [AutofillHints.password],
+                prefixIcon: Icons.lock_outline),
             if (_error != null && _error!.errors.isEmpty)
-              Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!.message, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(_error!.message,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error))),
             FilledButton(
               onPressed: _busy ? null : _submit,
-              child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(s('sign_in')),
+              child: _busy
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : Text(s('sign_in')),
             ),
             const SizedBox(height: 12),
-            Text(s('welcome_same_login'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+            Text(s('welcome_same_login'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -200,7 +271,11 @@ class _RegisterFormState extends State<_RegisterForm> {
       _error = null;
     });
     try {
-      await context.read<Session>().register(name: _name.text, email: _email.text, phone: _phone.text, password: _password.text);
+      await context.read<Session>().register(
+          name: _name.text,
+          email: _email.text,
+          phone: _phone.text,
+          password: _password.text);
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _error = e);
@@ -219,8 +294,22 @@ class _RegisterFormState extends State<_RegisterForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ApiTextField(controller: _name, label: s('your_name'), field: 'name', error: _error, required: true, autofillHints: const [AutofillHints.name], prefixIcon: Icons.person_outline),
-          ApiTextField(controller: _email, label: s('email'), field: 'email', error: _error, keyboardType: TextInputType.emailAddress, required: true, prefixIcon: Icons.mail_outline),
+          ApiTextField(
+              controller: _name,
+              label: s('your_name'),
+              field: 'name',
+              error: _error,
+              required: true,
+              autofillHints: const [AutofillHints.name],
+              prefixIcon: Icons.person_outline),
+          ApiTextField(
+              controller: _email,
+              label: s('email'),
+              field: 'email',
+              error: _error,
+              keyboardType: TextInputType.emailAddress,
+              required: true,
+              prefixIcon: Icons.mail_outline),
           ApiTextField(
             controller: _phone,
             label: s('mobile_number'),
@@ -231,13 +320,27 @@ class _RegisterFormState extends State<_RegisterForm> {
             hint: s('phone_hint'),
             prefixIcon: Icons.phone_outlined,
           ),
-          ApiTextField(controller: _password, label: s('password_hint'), field: 'password', error: _error, obscure: true, required: true, prefixIcon: Icons.lock_outline),
+          ApiTextField(
+              controller: _password,
+              label: s('password_hint'),
+              field: 'password',
+              error: _error,
+              obscure: true,
+              required: true,
+              prefixIcon: Icons.lock_outline),
           FilledButton(
             onPressed: _busy ? null : _submit,
-            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(s('create_account')),
+            child: _busy
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : Text(s('create_account')),
           ),
           const SizedBox(height: 12),
-          Text(s('after_signup'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+          Text(s('after_signup'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

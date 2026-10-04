@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -43,12 +44,12 @@ class _TimingsScreenState extends State<TimingsScreen> {
 
   /// Every-day timings become Mon–Fri, each with a Sat & Sun copy to edit.
   Future<void> _splitWeekend() async {
+    final s = S.of(context);
     final ok = await confirm(
       context,
-      'Different timings on Sat & Sun?',
-      body:
-          'Every-day timings become Mon–Fri, and a Sat & Sun copy of each is added with the same hours. Then tap the Sat & Sun ones to change their hours.',
-      action: 'Add',
+      s('tp_weekend_q'),
+      body: s('tp_weekend_body'),
+      action: s('tp_add'),
     );
     if (!ok || !mounted) return;
     try {
@@ -58,8 +59,11 @@ class _TimingsScreenState extends State<TimingsScreen> {
           .post('temples/${widget.templeId}/timings/weekend', const {});
       if (!mounted) return;
       final n = (res['data'] as List?)?.length ?? 0;
-      showMessage(context,
-          '$n Sat & Sun ${n == 1 ? 'timing' : 'timings'} added. Tap them to set the weekend hours.');
+      showMessage(
+          context,
+          n == 1
+              ? s('tp_weekend_added_one')
+              : s('tp_weekend_added_n', {'n': n}));
       _list.currentState?.reload();
     } catch (e) {
       if (mounted) showError(context, e);
@@ -68,32 +72,34 @@ class _TimingsScreenState extends State<TimingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final kinds = {
       for (final o in context.watch<Session>().options.timingKinds)
         o.value: o.label
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('Darshan timings')),
+      appBar: AppBar(title: Text(s('darshan_timings'))),
       floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _edit(),
           icon: const Icon(Icons.add),
-          label: const Text('Add timing')),
+          label: Text(s('tp_add_timing'))),
       body: AsyncList<Json>(
         key: _list,
         load: _load,
-        empty: 'No timings yet. Add when the temple opens for darshan.',
+        empty: s('tp_timings_empty'),
         header: Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: OutlinedButton.icon(
             onPressed: _splitWeekend,
             icon: const Icon(Icons.weekend_outlined),
-            label: const Text('Different timings on Sat & Sun'),
+            label: Text(s('tp_weekend_button')),
           ),
         ),
         itemBuilder: (context, t, reload) => Card(
           child: ListTile(
             leading: const IconBadge(Icons.schedule, color: Palette.sky),
-            title: Text('${t['day_label'] ?? 'Every day'} · ${t['window']}'),
+            title:
+                Text('${t['day_label'] ?? s('tp_every_day')} · ${t['window']}'),
             subtitle: Text([
               kinds[t['kind']] ?? t['kind'],
               if (t['label'] != null) t['label'],
@@ -103,7 +109,10 @@ class _TimingsScreenState extends State<TimingsScreen> {
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () async {
-                if (!await confirm(context, 'Remove this timing?')) return;
+                if (!await confirm(context, s('tp_remove_timing_q'),
+                    action: s('tp_delete'))) {
+                  return;
+                }
                 if (!context.mounted) return;
                 try {
                   await context
@@ -188,6 +197,7 @@ class _TimingFormState extends State<_TimingForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final o = context.watch<Session>().options;
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -197,11 +207,11 @@ class _TimingFormState extends State<_TimingForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.row == null ? 'Add timing' : 'Edit timing',
+            Text(widget.row == null ? s('tp_add_timing') : s('tp_edit_timing'),
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             OptionField(
-                label: 'Kind',
+                label: s('tp_kind'),
                 options: o.timingKinds,
                 value: _kind,
                 onChanged: (v) => setState(() => _kind = '$v')),
@@ -212,26 +222,26 @@ class _TimingFormState extends State<_TimingForm> {
             Row(children: [
               Expanded(
                   child: TimeField(
-                      label: 'Opens',
+                      label: s('tp_opens'),
                       value: _opens,
                       onChanged: (t) => setState(() => _opens = t))),
               const SizedBox(width: 12),
               Expanded(
                   child: TimeField(
-                      label: 'Closes',
+                      label: s('tp_closes'),
                       value: _closes,
                       onChanged: (t) => setState(() => _closes = t))),
             ]),
             const SizedBox(height: 12),
             ApiTextField(
                 controller: _label,
-                label: 'Label',
-                hint: 'e.g. Morning darshan, Suprabhatam',
+                label: s('tp_label'),
+                hint: s('tp_label_hint'),
                 field: 'label',
                 error: _error),
             ApiTextField(
                 controller: _notes,
-                label: 'Notes',
+                label: s('tp_notes'),
                 field: 'notes',
                 error: _error,
                 maxLines: 2),
@@ -243,7 +253,7 @@ class _TimingFormState extends State<_TimingForm> {
                           color: Theme.of(context).colorScheme.error))),
             FilledButton(
                 onPressed: _busy ? null : _save,
-                child: Text(_busy ? 'Saving…' : 'Save')),
+                child: Text(_busy ? s('saving') : s('save'))),
           ],
         ),
       ),

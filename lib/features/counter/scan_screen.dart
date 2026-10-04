@@ -291,13 +291,18 @@ class _ScanScreenState extends State<ScanScreen> {
         '${b['devotee_name'] ?? ''}${b['devotee_phone'] != null ? ' · ${b['devotee_phone']}' : ''}'
       ),
       if (b['gotram'] != null)
-        (Icons.family_restroom_outlined, 'Gotram: ${b['gotram']}'),
+        (
+          Icons.family_restroom_outlined,
+          s('mn_gotram_colon', {'v': b['gotram']})
+        ),
       if (b['nakshatram'] != null)
-        (Icons.star_outline, 'Nakshatram: ${b['nakshatram']}'),
+        (Icons.star_outline, s('mn_nakshatram_colon', {'v': b['nakshatram']})),
       if (b['note'] != null) (Icons.notes_outlined, '${b['note']}'),
       (
         Icons.currency_rupee,
-        '${b['amount'] ?? ''} · ${isTicket ? 'Ticket' : 'Ref'} ${b['reference']}'
+        '${b['amount'] ?? ''} · ${isTicket ? s('mn_ticket_ref', {
+                'ref': b['reference']
+              }) : s('mn_ref', {'ref': b['reference']})}'
       ),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -365,8 +370,7 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text(
-              'Only while they are here with you. The stamp goes into their passport, verified by the temple.',
+          child: Text(s('mn_stamp_note'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall),
         ),
@@ -453,7 +457,7 @@ class _ScannerFrame extends StatelessWidget {
                     foregroundColor: torch ? Palette.goldLight : Colors.white),
                 onPressed: onTorch,
                 icon: Icon(torch ? Icons.flashlight_on : Icons.flashlight_off),
-                tooltip: 'Torch',
+                tooltip: S.of(context)('mn_torch'),
               ),
             ),
             if (theme.brightness == Brightness.light) const SizedBox.shrink(),
