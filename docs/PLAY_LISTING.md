@@ -62,10 +62,15 @@ Questions? Write to support@darshansaathi.com or use Help & support in the app.
 **Website:** https://darshansaathi.com
 **Privacy policy:** https://darshansaathi.com/privacy-policy
 
-**Graphics**
-- App icon 512×512 PNG (from `assets/` / the launcher icon)
-- Feature graphic 1024×500
-- At least 2 phone screenshots (1080×1920 or similar): the temple dashboard, timings, bookings, scan, finance. Take them from the reviewer/demo account so no real devotee's name or phone appears.
+**Graphics** (ready in `store/play/`, made by `tool/store/render.js`)
+- App icon: `store/play/icon-512.png` (512×512, square, opaque)
+- Feature graphic: `store/play/feature-graphic.png` (1024×500)
+- Phone screenshots: `store/play/screenshots/01-home.png` … `08-sevas.png` (1080×1920), real app screens with demo data (no real devotees)
+
+**Other languages** (`store/play/listing/`)
+- `translations.csv`: title, short and full description in en-IN, te-IN, hi-IN, ta-IN and kn-IN, for Store listing → Manage translations → Import
+- `<language>.txt`: the same, to paste field by field
+- Regenerate with `python3 tool/store/listing.py` (it checks Play's length limits)
 
 ## App content (Policy → App content)
 
