@@ -13,10 +13,15 @@ void showMessage(BuildContext context, String message) {
 }
 
 void showError(BuildContext context, Object error) {
-  showMessage(context, error is ApiException ? error.details : 'Something went wrong. Please try again.');
+  showMessage(
+      context,
+      error is ApiException
+          ? error.details
+          : 'Something went wrong. Please try again.');
 }
 
-Future<bool> confirm(BuildContext context, String title, {String? body, String action = 'Delete'}) async {
+Future<bool> confirm(BuildContext context, String title,
+    {String? body, String action = 'Delete'}) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
@@ -44,7 +49,8 @@ class AsyncList<T> extends StatefulWidget {
   });
 
   final Future<List<T>> Function() load;
-  final Widget Function(BuildContext context, T item, VoidCallback reload) itemBuilder;
+  final Widget Function(BuildContext context, T item, VoidCallback reload)
+      itemBuilder;
   final String empty;
   final Widget? header;
   final IconData? emptyIcon;
@@ -562,7 +568,14 @@ class InitialsAvatar extends StatelessWidget {
 
 /// A dropdown over `/trust/options` values.
 class OptionField extends StatelessWidget {
-  const OptionField({super.key, required this.label, required this.options, required this.value, required this.onChanged, this.allowNone = false, this.noneLabel = '—'});
+  const OptionField(
+      {super.key,
+      required this.label,
+      required this.options,
+      required this.value,
+      required this.onChanged,
+      this.allowNone = false,
+      this.noneLabel = '—'});
 
   final String label;
   final List<Option> options;
@@ -579,8 +592,12 @@ class OptionField extends StatelessWidget {
       isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: [
-        if (allowNone) DropdownMenuItem<dynamic>(value: null, child: Text(noneLabel)),
-        for (final o in options) DropdownMenuItem<dynamic>(value: o.value, child: Text(o.label, overflow: TextOverflow.ellipsis)),
+        if (allowNone)
+          DropdownMenuItem<dynamic>(value: null, child: Text(noneLabel)),
+        for (final o in options)
+          DropdownMenuItem<dynamic>(
+              value: o.value,
+              child: Text(o.label, overflow: TextOverflow.ellipsis)),
       ],
       onChanged: onChanged,
     );
@@ -634,29 +651,152 @@ class ApiTextField extends StatelessWidget {
           errorText: field == null ? null : error?.field(field!),
           errorMaxLines: 3,
         ),
-        validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
+        validator: required
+            ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
+            : null,
       ),
     );
   }
 }
 
 /// Time as "HH:mm", the format the API reads and writes.
-String? formatTime(TimeOfDay? t) => t == null ? null : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+String? formatTime(TimeOfDay? t) => t == null
+    ? null
+    : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 TimeOfDay? parseTime(dynamic v) {
   if (v is! String || !v.contains(':')) return null;
   final p = v.split(':');
-  return TimeOfDay(hour: int.tryParse(p[0]) ?? 0, minute: int.tryParse(p[1]) ?? 0);
+  return TimeOfDay(
+      hour: int.tryParse(p[0]) ?? 0, minute: int.tryParse(p[1]) ?? 0);
 }
 
-String formatDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+/// A time as people read it: "17:30" or a TimeOfDay → "5:30 PM". The API
+/// keeps "HH:mm" (formatTime); this is only for showing.
+String? showTime(dynamic v) {
+  TimeOfDay? t = v is TimeOfDay ? v : null;
+  if (v is String) {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})(:\d{2})?$').firstMatch(v.trim());
+    if (m == null) return v;
+    t = TimeOfDay(
+        hour: int.parse(m.group(1)!) % 24, minute: int.parse(m.group(2)!));
+  }
+  if (t == null) return null;
+  final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+  return '$h:${t.minute.toString().padLeft(2, '0')} ${t.period == DayPeriod.am ? 'AM' : 'PM'}';
+}
+
+/// A moment from the API ("2026-10-03T12:00:00Z") in local time: "3 Oct, 5:30 PM".
+String? showDateTime(dynamic iso) {
+  final d = DateTime.tryParse('${iso ?? ''}')?.toLocal();
+  return d == null ? null : DateFormat('d MMM, h:mm a').format(d);
+}
+
+/// Opens the time picker on the 12-hour clock, whatever the phone is set to.
+Future<TimeOfDay?> pickTime(BuildContext context, TimeOfDay initial) =>
+    showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+
+String formatDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// Days of the week, Monday first (0 = Sunday … 6 = Saturday, as the API).
+const kWeek = [1, 2, 3, 4, 5, 6, 0];
+const kWeekdays = [1, 2, 3, 4, 5];
+const kWeekend = [6, 0];
+const _dayShort = {
+  0: 'Sun',
+  1: 'Mon',
+  2: 'Tue',
+  3: 'Wed',
+  4: 'Thu',
+  5: 'Fri',
+  6: 'Sat'
+};
+
+/// Which days a timing holds on: every day, Mon–Fri, Sat & Sun, or any
+/// days picked. An empty list is every day.
+class DaysPicker extends StatelessWidget {
+  const DaysPicker({super.key, required this.value, required this.onChanged});
+
+  final List<int> value;
+  final ValueChanged<List<int>> onChanged;
+
+  bool _same(List<int> a, List<int> b) =>
+      a.length == b.length && a.toSet().containsAll(b);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sorted = [
+      for (final d in kWeek)
+        if (value.contains(d)) d
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Days', style: theme.textTheme.labelLarge),
+      const SizedBox(height: 6),
+      Wrap(spacing: 8, runSpacing: 4, children: [
+        ChoiceChip(
+            label: const Text('Every day'),
+            selected: value.isEmpty,
+            onSelected: (_) => onChanged(const [])),
+        ChoiceChip(
+            label: const Text('Mon–Fri'),
+            selected: _same(value, kWeekdays),
+            onSelected: (_) => onChanged(kWeekdays)),
+        ChoiceChip(
+            label: const Text('Sat & Sun'),
+            selected: _same(value, kWeekend),
+            onSelected: (_) => onChanged(kWeekend)),
+      ]),
+      const SizedBox(height: 4),
+      Wrap(spacing: 6, runSpacing: 4, children: [
+        for (final d in kWeek)
+          FilterChip(
+            label: Text(_dayShort[d]!),
+            selected: value.contains(d),
+            showCheckmark: false,
+            visualDensity: VisualDensity.compact,
+            onSelected: (on) {
+              final next =
+                  on ? [...sorted, d] : sorted.where((x) => x != d).toList();
+              // All seven is every day.
+              onChanged(next.length == 7
+                  ? const []
+                  : [
+                      for (final x in kWeek)
+                        if (next.contains(x)) x
+                    ]);
+            },
+          ),
+      ]),
+      const SizedBox(height: 4),
+      Text(
+        value.isEmpty
+            ? 'Every day.'
+            : 'Only on these days. On them it replaces the every-day timing with the same kind and label.',
+        style: theme.textTheme.bodySmall,
+      ),
+    ]);
+  }
+}
 
 /// "Fri, 3 Oct 2026", for people rather than the API.
 String prettyDate(DateTime d) => DateFormat('EEE, d MMM yyyy').format(d);
 
 /// A tappable row that opens a time picker.
 class TimeField extends StatelessWidget {
-  const TimeField({super.key, required this.label, required this.value, required this.onChanged});
+  const TimeField(
+      {super.key,
+      required this.label,
+      required this.value,
+      required this.onChanged});
 
   final String label;
   final TimeOfDay? value;
@@ -667,15 +807,20 @@ class TimeField extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () async {
-        final t = await showTimePicker(context: context, initialTime: value ?? const TimeOfDay(hour: 6, minute: 0));
+        final t = await pickTime(
+            context, value ?? const TimeOfDay(hour: 6, minute: 0));
         if (t != null) onChanged(t);
       },
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          suffixIcon: value == null ? const Icon(Icons.schedule) : IconButton(icon: const Icon(Icons.clear), onPressed: () => onChanged(null)),
+          suffixIcon: value == null
+              ? const Icon(Icons.schedule)
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => onChanged(null)),
         ),
-        child: Text(value == null ? '—' : formatTime(value)!),
+        child: Text(value == null ? '—' : showTime(value)!),
       ),
     );
   }
@@ -708,7 +853,11 @@ class DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          suffixIcon: clearable && value != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () => onChanged(null)) : const Icon(Icons.calendar_today_outlined),
+          suffixIcon: clearable && value != null
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => onChanged(null))
+              : const Icon(Icons.calendar_today_outlined),
         ),
         child: Text(value == null ? (emptyLabel ?? '—') : formatDate(value!)),
       ),
@@ -719,7 +868,8 @@ class DateField extends StatelessWidget {
 /// Paise from the API as rupees, the Indian way: ₹1,23,456.00.
 String rupees(dynamic paise) {
   final p = (paise as num?)?.toInt() ?? 0;
-  return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2).format(p / 100);
+  return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2)
+      .format(p / 100);
 }
 
 /// Rupees without paise, for the large figures: ₹1,23,456.
@@ -731,7 +881,8 @@ String rupeesShort(dynamic paise) {
 
 /// A figure with its label, for money and counts on the finance screens.
 class Figure extends StatelessWidget {
-  const Figure(this.label, this.value, {super.key, this.caption, this.emphasis = false, this.color});
+  const Figure(this.label, this.value,
+      {super.key, this.caption, this.emphasis = false, this.color});
 
   final String label;
   final String value;

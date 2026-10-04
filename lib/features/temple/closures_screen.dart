@@ -52,7 +52,7 @@ class _ClosuresScreenState extends State<ClosuresScreen> {
               subtitle: Text([
                 if (c['is_active_today'] == true) 'Today',
                 dates,
-                c['is_full_day'] == true ? 'Closed all day' : 'Open ${c['opens_at'] ?? '?'} – ${c['closes_at'] ?? '?'}',
+                c['is_full_day'] == true ? 'Closed all day' : 'Open ${showTime(c['opens_at']) ?? '?'} – ${showTime(c['closes_at']) ?? '?'}',
                 if (c['notes'] != null) c['notes'],
               ].join(' · ')),
               leading: c['is_active_today'] == true ? const IconBadge(Icons.today, color: Palette.kumkum, filled: true) : const IconBadge(Icons.event_busy_outlined, color: Color(0xFF8D6E63)),

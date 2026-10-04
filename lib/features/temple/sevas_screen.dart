@@ -52,7 +52,7 @@ class _SevasScreenState extends State<SevasScreen> {
               title: Text('${p['name']}'),
               subtitle: Text([
                 '${fee['label'] ?? ''}',
-                if (p['starts_at'] != null) 'at ${p['starts_at']}',
+                if (p['starts_at'] != null) 'at ${showTime(p['starts_at'])}',
                 if (app['enabled'] == true) 'Bookable in app',
               ].where((e) => e.isNotEmpty).join(' · ')),
               trailing: p['is_published'] == true ? null : const StatusChip('Hidden'),
@@ -326,7 +326,7 @@ class _SevaFormState extends State<SevaForm> {
             for (final (i, slot) in _slots.indexed)
               Card(
                 child: ListTile(
-                  title: Text('${formatTime(slot.from)}${slot.to == null ? '' : ' – ${formatTime(slot.to)}'}${slot.active ? '' : ' (off)'}'),
+                  title: Text('${showTime(slot.from)}${slot.to == null ? '' : ' – ${showTime(slot.to)}'}${slot.active ? '' : ' (off)'}'),
                   subtitle: Text([
                     slot.capacity == null ? 'No limit' : '${slot.capacity} people a day',
                     slot.days.isEmpty || slot.days.length == 7 ? 'every day' : [for (final d in slot.days..sort()) _weekdays[d]].join(', '),

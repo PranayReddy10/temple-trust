@@ -81,7 +81,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           };
     final label = expired ? 'Expired' : '${status['label'] ?? value}';
     final slot = (b['slot'] as Map?)?['label'] as String?;
-    final time = slot ?? puja['starts_at'] as String?;
+    final time = slot ?? showTime(puja['starts_at']);
     final verifiedAt = DateTime.tryParse('${b['verified_at']}')?.toLocal();
 
     Widget fact(IconData icon, String title, String text) => Padding(

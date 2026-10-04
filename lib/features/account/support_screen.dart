@@ -12,7 +12,7 @@ Json _map(dynamic v) => (v as Map?)?.cast<String, dynamic>() ?? const {};
 
 String _when(dynamic iso) {
   final d = DateTime.tryParse('$iso')?.toLocal();
-  return d == null ? '' : '${formatDate(d)} ${formatTime(TimeOfDay.fromDateTime(d))}';
+  return d == null ? '' : '${formatDate(d)} ${showTime(TimeOfDay.fromDateTime(d))}';
 }
 
 /// Help from the Darshan Saathi team: questions and problems go to the admin
