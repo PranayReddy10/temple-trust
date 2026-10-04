@@ -49,18 +49,29 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> login(String email, String password) async {
-    final res = await api.post('auth/login', {'email': email.trim(), 'password': password});
+    final res = await api
+        .post('auth/login', {'email': email.trim(), 'password': password});
     await _accept(res);
   }
 
-  Future<void> register({required String name, required String email, required String phone, required String password}) async {
-    final res = await api.post('auth/register', {'name': name.trim(), 'email': email.trim(), 'phone': phone.trim(), 'password': password});
+  Future<void> register(
+      {required String name,
+      required String email,
+      required String phone,
+      required String password}) async {
+    final res = await api.post('auth/register', {
+      'name': name.trim(),
+      'email': email.trim(),
+      'phone': phone.trim(),
+      'password': password
+    });
     await _accept(res);
   }
 
   Future<void> refresh() async {
     final res = await api.get('me');
-    _account = TrustAccount.fromJson((res['data'] as Map).cast<String, dynamic>());
+    _account =
+        TrustAccount.fromJson((res['data'] as Map).cast<String, dynamic>());
     notifyListeners();
     await loadOptions();
   }
@@ -78,8 +89,17 @@ class Session extends ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> changes) async {
     final res = await api.patch('me', changes);
-    _account = TrustAccount.fromJson((res['data'] as Map).cast<String, dynamic>());
+    _account =
+        TrustAccount.fromJson((res['data'] as Map).cast<String, dynamic>());
     notifyListeners();
+  }
+
+  /// Deletes this account on the server, then signs out here. Throws (and
+  /// stays signed in) when the password or confirmation is refused.
+  Future<void> deleteAccount(
+      {required String password, required String confirm}) async {
+    await api.delete('me', {'password': password, 'confirm': confirm});
+    await _clear();
   }
 
   Future<void> logout() async {
@@ -94,7 +114,8 @@ class Session extends ChangeNotifier {
   Future<void> _accept(Map<String, dynamic> res) async {
     final data = (res['data'] as Map).cast<String, dynamic>();
     api.token = '${data['token']}';
-    _account = TrustAccount.fromJson((data['account'] as Map).cast<String, dynamic>());
+    _account =
+        TrustAccount.fromJson((data['account'] as Map).cast<String, dynamic>());
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, api.token!);
     notifyListeners();
