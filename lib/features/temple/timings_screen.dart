@@ -93,7 +93,7 @@ class _TimingsScreenState extends State<TimingsScreen> {
         itemBuilder: (context, t, reload) => Card(
           child: ListTile(
             leading: const IconBadge(Icons.schedule, color: Palette.sky),
-            title: Text('${t['window']}'),
+            title: Text('${t['day_label'] ?? 'Every day'} · ${t['window']}'),
             subtitle: Text([
               kinds[t['kind']] ?? t['kind'],
               if (t['label'] != null) t['label'],
