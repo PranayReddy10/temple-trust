@@ -7,6 +7,7 @@ import '../../core/l10n.dart';
 import '../../core/models.dart';
 import '../../core/photo_crop.dart';
 import '../../core/session.dart';
+import '../../core/share.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../counter/find_booking_screen.dart';
@@ -168,6 +169,13 @@ class _TempleDashboardScreenState extends State<TempleDashboardScreen> {
                   backgroundColor: theme.scaffoldBackgroundColor,
                   foregroundColor: theme.colorScheme.onSurface,
                   actions: [
+                    Builder(
+                      builder: (context) => IconButton(
+                        tooltip: S.of(context)('share_temple'),
+                        icon: const Icon(Icons.share_outlined),
+                        onPressed: () => shareTemple(context, t),
+                      ),
+                    ),
                     if (isAdmin)
                       PopupMenuButton<String>(
                         tooltip: 'Listing status',
