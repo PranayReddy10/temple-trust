@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -58,9 +59,14 @@ class _TempleQrScreenState extends State<TempleQrScreen> {
               const SizedBox(height: 16),
               Center(
                 child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.colorScheme.outlineVariant)),
-                  child: QrImageView(data: url, size: 260, backgroundColor: Colors.white, semanticsLabel: 'Check-in code for ${widget.title}'),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Palette.gold.withValues(alpha: 0.6), width: 2),
+                    boxShadow: TrustStyle.of(context).cardShadow,
+                  ),
+                  child: QrImageView(data: url, size: 250, backgroundColor: Colors.white, eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Palette.deep), dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Palette.deep), semanticsLabel: 'Check-in code for ${widget.title}'),
                 ),
               ),
               if (q['is_published'] != true)

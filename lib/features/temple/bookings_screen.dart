@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/l10n.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'booking_detail_screen.dart';
 import '../counter/find_booking_screen.dart';
@@ -27,6 +30,10 @@ class BookingsScreen extends StatefulWidget {
 
 class _BookingsScreenState extends State<BookingsScreen> {
   late DateTime? _day = widget.initialDay ?? (widget.todayOnly ? DateTime.now() : null);
+
+  /// Which bookings: the successful ones (confirmed, and received at the
+  /// temple) by default; the others on request.
+  String _status = 'successful';
   final _list = GlobalKey<AsyncListState<Json>>();
 
   /// The day's totals, sent with the list when a day is chosen.
@@ -49,10 +56,19 @@ class _BookingsScreenState extends State<BookingsScreen> {
     _debounce = Timer(const Duration(milliseconds: 400), () => _list.currentState?.reload());
   }
 
+  void _setDay(DateTime? d) {
+    setState(() {
+      _day = d;
+      _summary = null;
+    });
+    _list.currentState?.reload();
+  }
+
   Future<List<Json>> _load() async {
     final q = _search.text.trim();
     final res = await context.read<Session>().api.get('temples/${widget.templeId}/bookings', {
       'date': _day == null ? null : formatDate(_day!),
+      'status': _status,
       if (q.length >= 2) 'q': q,
     });
     final summary = (res['summary'] as Map?)?.cast<String, dynamic>();
@@ -61,46 +77,48 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   Widget? _header(BuildContext context) {
-    final s = _summary;
-    if (_day == null || s == null) return null;
-    int n(String k) => (s[k] as num?)?.toInt() ?? 0;
-    final theme = Theme.of(context);
-    final tickets = (s['tickets'] as Map?) ?? const {};
-    final gifts = (s['donations'] as Map?) ?? const {};
+    final s = S.of(context);
+    final sm = _summary;
+    if (_day == null || sm == null) return null;
+    int n(String k) => (sm[k] as num?)?.toInt() ?? 0;
+    final tickets = (sm['tickets'] as Map?) ?? const {};
+    final gifts = (sm['donations'] as Map?) ?? const {};
     int c(Map m) => (m['count'] as num?)?.toInt() ?? 0;
     // Event tickets and hundi gifts the same day, for the full picture.
     final extras = [
-      if (c(tickets) > 0) '${c(tickets)} event tickets ${rupees(tickets['amount_paise'])}',
-      if (c(gifts) > 0) '${c(gifts)} hundi gifts ${rupees(gifts['amount_paise'])}',
-      if (c(tickets) > 0 || c(gifts) > 0) 'in all ${rupees(s['total_paise'])}',
+      if (c(tickets) > 0) '${s('n_tickets', {'n': c(tickets)})} ${rupees(tickets['amount_paise'])}',
+      if (c(gifts) > 0) '${s('n_gifts', {'n': c(gifts)})} ${rupees(gifts['amount_paise'])}',
+      if (c(tickets) > 0 || c(gifts) > 0) '${s('in_all').toLowerCase()} ${rupees(sm['total_paise'])}',
     ];
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Figure('Booked', '${n('bookings')}', caption: '${n('people')} people')),
-              Expanded(child: Figure('Received', '${n('received')}', caption: '${n('to_receive')} to come')),
-              Expanded(child: Figure('Amount paid', rupees(s['amount_paise']), color: theme.colorScheme.primary)),
-            ]),
-            if (extras.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(extras.join(' · '), style: theme.textTheme.bodySmall)),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: HeroPanel(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(prettyDate(_day!).toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+          const SizedBox(height: 10),
+          Row(children: [
+            _HeroFigure(s('booked'), '${n('bookings')}', s.people(n('people'))),
+            _HeroFigure(s('received'), '${n('received')}', s('n_to_come', {'n': n('to_receive')})),
+            _HeroFigure(s('amount_paid'), rupeesShort(sm['amount_paise']), null, flex: 3),
           ]),
-        ),
+          if (extras.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 10), child: Text(extras.join(' · '), style: const TextStyle(color: Colors.white70, fontSize: 12))),
+        ]),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final today = DateTime.now();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Seva bookings'),
+        title: Text(s('seva_bookings')),
         actions: [
           IconButton(
-            tooltip: 'Find by mobile number, reference or name',
+            tooltip: s('find_booking_hint'),
             icon: const Icon(Icons.person_search_outlined),
             onPressed: () async {
               await Navigator.push(context, MaterialPageRoute(builder: (_) => const FindBookingScreen()));
@@ -108,7 +126,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
             },
           ),
           IconButton(
-            tooltip: 'Scan a booking',
+            tooltip: s('scan'),
             icon: const Icon(Icons.qr_code_scanner),
             onPressed: () async {
               await Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanScreen()));
@@ -119,27 +137,56 @@ class _BookingsScreenState extends State<BookingsScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Row(children: [
-              Expanded(
-                child: DateField(
-                  label: 'Day',
-                  value: _day,
-                  clearable: true,
-                  onChanged: (d) {
-                    setState(() {
-                      _day = d;
-                      _summary = null;
-                    });
-                    _list.currentState?.reload();
+          // The day: today, tomorrow, any day, or all days.
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              children: [
+                _DayChip(label: s('today'), selected: _day != null && formatDate(_day!) == formatDate(today), onTap: () => _setDay(today)),
+                _DayChip(label: DateFormat.MMMd(Localizations.localeOf(context).toString()).format(today.add(const Duration(days: 1))), selected: _day != null && formatDate(_day!) == formatDate(today.add(const Duration(days: 1))), onTap: () => _setDay(today.add(const Duration(days: 1)))),
+                _DayChip(label: s('all_days'), selected: _day == null, onTap: () => _setDay(null)),
+                _DayChip(
+                  label: _day == null || formatDate(_day!) == formatDate(today) || formatDate(_day!) == formatDate(today.add(const Duration(days: 1))) ? s('day') : formatDate(_day!),
+                  icon: Icons.calendar_today_outlined,
+                  selected: _day != null && formatDate(_day!) != formatDate(today) && formatDate(_day!) != formatDate(today.add(const Duration(days: 1))),
+                  onTap: () async {
+                    final d = await showDatePicker(context: context, initialDate: _day ?? today, firstDate: DateTime(today.year - 2), lastDate: DateTime(today.year + 3));
+                    if (d != null) _setDay(d);
                   },
                 ),
-              ),
-            ]),
+              ],
+            ),
+          ),
+          // Which bookings: successful by default; the rest on request.
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              children: [
+                for (final (value, label, icon) in [
+                  ('successful', s('filter_successful'), Icons.task_alt),
+                  ('expired', s('filter_expired'), Icons.person_off_outlined),
+                  ('cancelled', s('filter_cancelled'), Icons.cancel_outlined),
+                  ('pending_payment', s('filter_awaiting'), Icons.hourglass_top_outlined),
+                  ('all', s('filter_all'), Icons.list_alt_outlined),
+                ])
+                  _DayChip(
+                    label: label,
+                    icon: icon,
+                    selected: _status == value,
+                    onTap: () {
+                      setState(() => _status = value);
+                      _list.currentState?.reload();
+                    },
+                  ),
+              ],
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _search,
               onChanged: _searchChanged,
@@ -147,7 +194,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon: const Icon(Icons.search),
-                hintText: 'Search name, mobile number or reference',
+                hintText: s('search_bookings'),
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
@@ -165,35 +212,103 @@ class _BookingsScreenState extends State<BookingsScreen> {
               key: _list,
               load: _load,
               header: _header(context),
+              emptyIcon: Icons.confirmation_number_outlined,
               empty: _search.text.trim().length >= 2
                   ? 'No booking matches "${_search.text.trim()}"${_day == null ? '' : ' on this day'}.'
-                  : (_day == null ? 'No bookings yet.' : 'No bookings for this day.'),
+                  : (_day == null ? s('no_bookings_yet') : s('no_bookings_day')),
               itemBuilder: (context, b, reload) {
                 final status = (b['status'] as Map?) ?? const {};
                 final puja = (b['puja'] as Map?) ?? const {};
-                return Card(
-                  child: ListTile(
-                    title: Text('${b['devotee_name'] ?? 'Devotee'} · ${b['people']} ${b['people'] == 1 ? 'person' : 'people'}'),
-                    subtitle: Text([
-                      '${puja['name'] ?? ''}',
-                      '${b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' ${(b['slot'] as Map)['label']}' : ''}',
-                      'Ref ${b['reference']}',
-                      if (b['amount'] != null) '${b['amount']}',
-                      if (b['gotram'] != null) 'Gotram ${b['gotram']}',
-                      if (b['nakshatram'] != null) 'Nakshatram ${b['nakshatram']}',
-                      if (b['devotee_phone'] != null) '${b['devotee_phone']}',
-                    ].join(' · ')),
-                    trailing: StatusChip.forStatus('${status['value']}', '${status['label'] ?? status['value']}'),
-                    onTap: () async {
-                      await Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: b)));
-                      reload();
-                    },
-                  ),
+                final value = '${status['value']}';
+                final people = (b['people'] as num?)?.toInt() ?? 1;
+                final name = '${b['devotee_name'] ?? 'Devotee'}';
+                return SoftCard(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                  onTap: () async {
+                    await Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: b)));
+                    reload();
+                  },
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    InitialsAvatar(name, color: value == 'verified' ? Palette.tulsi : (value == 'confirmed' ? Palette.kumkum : Palette.stone)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('$name · ${people == 1 ? '1 person' : '$people people'}', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            '${puja['name'] ?? ''}',
+                            '${b['booked_for']}${(b['slot'] as Map?)?['label'] != null ? ' ${(b['slot'] as Map)['label']}' : ''}',
+                            if (b['amount'] != null) '${b['amount']}',
+                          ].where((e) => e.isNotEmpty).join(' · '),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Text(
+                          [
+                            'Ref ${b['reference']}',
+                            if (b['gotram'] != null) 'Gotram ${b['gotram']}',
+                            if (b['nakshatram'] != null) 'Nakshatram ${b['nakshatram']}',
+                            if (b['devotee_phone'] != null) '${b['devotee_phone']}',
+                          ].join(' · '),
+                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 11.5),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(width: 8),
+                    StatusChip.forStatus(value, '${status['label'] ?? status['value']}'),
+                  ]),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeroFigure extends StatelessWidget {
+  const _HeroFigure(this.label, this.value, this.caption, {this.flex = 2});
+
+  final String label;
+  final String value;
+  final String? caption;
+  final int flex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.2))),
+        if (caption != null) Text(caption!, style: const TextStyle(color: Colors.white70, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
+    );
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  const _DayChip({required this.label, required this.selected, required this.onTap, this.icon});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        avatar: icon == null ? null : Icon(icon, size: 16, color: selected ? Colors.white : theme.colorScheme.primary),
+        selected: selected,
+        showCheckmark: false,
+        selectedColor: theme.colorScheme.primary,
+        labelStyle: TextStyle(color: selected ? Colors.white : theme.colorScheme.onSurface, fontWeight: FontWeight.w700, fontSize: 13),
+        onSelected: (_) => onTap(),
       ),
     );
   }

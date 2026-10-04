@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/brand.dart';
+import '../../core/l10n.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'bookings_screen.dart';
 import 'payments_verification_screen.dart';
@@ -14,9 +16,9 @@ typedef Json = Map<String, dynamic>;
 Json _map(dynamic v) => (v as Map?)?.cast<String, dynamic>() ?? const {};
 int _n(dynamic v) => (v as num?)?.toInt() ?? 0;
 
-/// A temple's money: who booked a day and what they paid, the month, what
-/// the platform holds for the temple, every payout with its bank reference,
-/// and the account it is paid to.
+/// A temple's money, in full: any day's bookings and what they paid, the
+/// month, the year and all time; what the platform holds for the temple;
+/// every payout with its bank reference; and the account it is paid to.
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key, required this.templeId, required this.title});
 
@@ -49,8 +51,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Finance')),
+      appBar: AppBar(title: Text(s('finance'))),
       body: FutureBuilder<Json>(
         future: _future,
         builder: (context, snap) {
@@ -65,7 +68,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
           final inPayout = _map(balance['in_payout']);
           final paid = _map(balance['paid']);
           final account = f['payout_account'] == null ? null : _map(f['payout_account']);
-          final recent = [for (final s in (f['recent_settlements'] as List? ?? const [])) _map(s)];
+          final recent = [for (final x in (f['recent_settlements'] as List? ?? const [])) _map(x)];
           final theme = Theme.of(context);
 
           return RefreshIndicator(
@@ -77,17 +80,52 @@ class _FinanceScreenState extends State<FinanceScreen> {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
               children: [
-                Text(widget.title, style: theme.textTheme.titleLarge),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+                  child: Text(widget.title, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                ),
                 const SizedBox(height: 8),
-                FeeShareCard(feePercent: balance['fee_percent'], donationFeePercent: balance['donation_fee_percent']),
+
+                // What is due, first: the figure the trust opens this for.
+                HeroPanel(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(s('due_to_temple').toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(rupees(ready['net_paise']), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 34, fontWeight: FontWeight.w600, height: 1.1)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        s('n_bookings', {'n': _n(ready['bookings'])}),
+                        if (_n(ready['tickets']) > 0) s('n_tickets', {'n': _n(ready['tickets'])}),
+                        if (_n(ready['donations']) > 0) s('n_gifts', {'n': _n(ready['donations'])}),
+                        '${rupees(ready['gross_paise'])} − ${rupees(ready['fee_paise'])} ${s('platform_fee').toLowerCase()}',
+                      ].join(' · '),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      Expanded(child: _HeroFigure(s('being_paid'), rupees(inPayout['net_paise']), s('n_settlements', {'n': _n(inPayout['settlements'])}))),
+                      Expanded(child: _HeroFigure(s('paid_to_date'), rupees(paid['net_paise']), s('n_settlements', {'n': _n(paid['settlements'])}))),
+                    ]),
+                  ]),
+                ),
+
+                // The report: every period, with sevas, tickets and hundi.
+                SectionTitle(s('financial_report'), subtitle: s('report_hint')),
+                _ReportTabs(finance: f),
+
                 SectionTitle(
-                  _isToday ? 'Today' : 'Day',
+                  _isToday ? s('today') : s('day'),
                   trailing: SizedBox(
                     width: 170,
                     child: DateField(
-                      label: 'Day',
+                      label: s('day'),
                       value: _day,
                       onChanged: (d) {
                         if (d == null) return;
@@ -98,91 +136,55 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   ),
                 ),
                 _DayCard(day: day, onOpen: () => _open(BookingsScreen(templeId: widget.templeId, initialDay: _day))),
-                const SectionTitle('This month'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(children: [
+
+                SectionTitle(s('settlement')),
+                SoftCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(children: [
-                        Expanded(child: Figure('Paid bookings', '${_n(month['bookings'])}', caption: '${_n(month['people'])} people · ${rupees(month['amount_paise'])}')),
-                        Expanded(child: Figure('In all', rupees(month['total_paise'] ?? month['amount_paise']), emphasis: true)),
+                        Expanded(child: Figure(s('due_to_temple'), rupees(ready['net_paise']), emphasis: true, color: theme.colorScheme.primary)),
+                        Expanded(child: Figure(s('upcoming'), rupees(upcoming['gross_paise']), caption: s('n_bookings', {'n': _n(upcoming['bookings'])}))),
                       ]),
-                      if (_n(_map(month['tickets'])['count']) > 0 || _n(_map(month['donations'])['count']) > 0) ...[
-                        const SizedBox(height: 12),
-                        Row(children: [
-                          Expanded(
-                            child: Figure(
-                              'Event tickets',
-                              rupees(_map(month['tickets'])['amount_paise']),
-                              caption: '${_n(_map(month['tickets'])['count'])} · ${_n(_map(month['tickets'])['people'])} people',
-                            ),
-                          ),
-                          Expanded(child: Figure('Online hundi', rupees(_map(month['donations'])['amount_paise']), caption: '${_n(_map(month['donations'])['count'])} gifts')),
-                        ]),
-                      ],
-                    ]),
+                      const Divider(height: 24),
+                      Row(children: [
+                        Expanded(child: Figure(s('being_paid'), rupees(inPayout['net_paise']), caption: s('n_settlements', {'n': _n(inPayout['settlements'])}))),
+                        Expanded(child: Figure(s('paid_to_date'), rupees(paid['net_paise']), caption: s('n_settlements', {'n': _n(paid['settlements'])}))),
+                      ]),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Devotees pay through the platform; it pays your temple in regular settlements, '
+                        'less a ${_percent(balance['fee_percent'])} platform fee'
+                        '${balance['donation_fee_percent'] != null ? ' (${_percent(balance['donation_fee_percent'])} on hundi gifts)' : ''}. '
+                        '${rupees(upcoming['gross_paise'])} is already paid for ${_n(upcoming['bookings'])} bookings on days still ahead.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ),
-                const SectionTitle('Settlement'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Expanded(
-                            child: Figure(
-                              'Due to your temple',
-                              rupees(ready['net_paise']),
-                              emphasis: true,
-                              color: theme.colorScheme.primary,
-                              caption: [
-                                '${_n(ready['bookings'])} bookings',
-                                if (_n(ready['tickets']) > 0) '${_n(ready['tickets'])} tickets',
-                                if (_n(ready['donations']) > 0) '${_n(ready['donations'])} hundi gifts',
-                                '${rupees(ready['gross_paise'])} less ${rupees(ready['fee_paise'])} fee',
-                              ].join(' · '),
-                            ),
-                          ),
-                        ]),
-                        const Divider(height: 24),
-                        Row(children: [
-                          Expanded(child: Figure('Being paid', rupees(inPayout['net_paise']), caption: '${_n(inPayout['settlements'])} settlements')),
-                          Expanded(child: Figure('Paid to date', rupees(paid['net_paise']), caption: '${_n(paid['settlements'])} settlements')),
-                        ]),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Devotees pay through the platform; it pays your temple in regular settlements, '
-                          'less a ${_percent(balance['fee_percent'])} platform fee'
-                          '${balance['donation_fee_percent'] != null ? ' (${_percent(balance['donation_fee_percent'])} on hundi gifts)' : ''}. '
-                          '${rupees(upcoming['gross_paise'])} is already paid for ${_n(upcoming['bookings'])} bookings on days still ahead.',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
+                const SizedBox(height: 10),
+                FeeShareCard(feePercent: balance['fee_percent'], donationFeePercent: balance['donation_fee_percent']),
+
+                SectionTitle(s('online_hundi')),
+                ActionTile(
+                  icon: Icons.volunteer_activism_outlined,
+                  color: Palette.gold,
+                  title: f['accepts_donations'] == true ? s('taking_gifts') : s('not_taking_gifts'),
+                  subtitle: '${s('today')} ${rupees(_map(day['donations'])['amount_paise'])} · ${s('this_month').toLowerCase()} ${rupees(_map(month['donations'])['amount_paise'])}',
+                  onTap: () => _open(DonationsScreen(templeId: widget.templeId)),
                 ),
-                const SectionTitle('Online hundi'),
-                Card(
-                  child: ListTile(
-                    leading: Icon(Icons.volunteer_activism_outlined, color: theme.colorScheme.primary),
-                    title: Text(f['accepts_donations'] == true ? 'Taking gifts in the app' : 'Not taking gifts in the app'),
-                    subtitle: Text('Today ${rupees(_map(day['donations'])['amount_paise'])} · this month ${rupees(_map(month['donations'])['amount_paise'])}'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _open(DonationsScreen(templeId: widget.templeId)),
-                  ),
-                ),
+
                 SectionTitle(
-                  'Payouts',
+                  s('payouts'),
                   trailing: TextButton(
                     onPressed: () => _open(SettlementsScreen(templeId: widget.templeId)),
-                    child: const Text('See all'),
+                    child: Text(s('see_all')),
                   ),
                 ),
-                if (recent.isEmpty) const Card(child: ListTile(title: Text('No payouts yet'), subtitle: Text('They appear here once the platform settles your paid bookings.'))),
-                for (final s in recent) _SettlementTile(s, onTap: () => _open(SettlementDetailScreen(templeId: widget.templeId, settlementId: _n(s['id'])))),
-                const SectionTitle('Paid to'),
+                if (recent.isEmpty) SoftCard(child: Row(children: [const IconBadge(Icons.receipt_long_outlined), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s('no_payouts'), style: theme.textTheme.titleMedium), Text(s('no_payouts_body'), style: theme.textTheme.bodySmall)]))])),
+                for (final x in recent) _SettlementTile(x, onTap: () => _open(SettlementDetailScreen(templeId: widget.templeId, settlementId: _n(x['id'])))),
+
+                SectionTitle(s('paid_to')),
                 if ((account?['kyc'] as Map?)?['status'] == 'rejected')
                   RejectionNotice(
                     reason: (account!['kyc'] as Map)['rejection_reason'] as String?,
@@ -204,6 +206,116 @@ class _FinanceScreenState extends State<FinanceScreen> {
   }
 }
 
+class _HeroFigure extends StatelessWidget {
+  const _HeroFigure(this.label, this.value, this.caption);
+
+  final String label;
+  final String value;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
+      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.2))),
+      Text(caption, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+    ]);
+  }
+}
+
+/// Today · this month · this year · all time, each with the sevas, tickets
+/// and hundi gifts that make up the total. Year and all-time come from
+/// newer servers; an older one shows the first two.
+class _ReportTabs extends StatefulWidget {
+  const _ReportTabs({required this.finance});
+
+  final Json finance;
+
+  @override
+  State<_ReportTabs> createState() => _ReportTabsState();
+}
+
+class _ReportTabsState extends State<_ReportTabs> {
+  String _period = 'month';
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final f = widget.finance;
+    final periods = <(String, String, Json?)>[
+      ('today', s('today'), f['today'] == null ? null : _map(f['today'])),
+      ('month', s('this_month'), _map(f['month'])),
+      ('year', s('this_year'), f['year'] == null ? null : _map(f['year'])),
+      ('all_time', s('all_time'), f['all_time'] == null ? null : _map(f['all_time'])),
+    ].where((p) => p.$3 != null).toList();
+    if (!periods.any((p) => p.$1 == _period)) _period = periods.first.$1;
+    final p = periods.firstWhere((p) => p.$1 == _period).$3!;
+    final tickets = _map(p['tickets']);
+    final gifts = _map(p['donations']);
+    final total = _n(p['total_paise'] ?? p['amount_paise']);
+    final sevas = _n(p['amount_paise']);
+    double share(int part) => total == 0 ? 0 : part / total;
+
+    return SoftCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              for (final (i, item) in periods.indexed)
+                Padding(
+                  padding: EdgeInsets.only(right: i == periods.length - 1 ? 0 : 8),
+                  child: ChoiceChip(
+                    label: Text(item.$2),
+                    selected: _period == item.$1,
+                    showCheckmark: false,
+                    selectedColor: theme.colorScheme.primary,
+                    labelStyle: TextStyle(color: _period == item.$1 ? Colors.white : theme.colorScheme.onSurface, fontWeight: FontWeight.w700, fontSize: 13),
+                    onSelected: (_) => setState(() => _period = item.$1),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: Figure(s('total_collected'), rupees(total), emphasis: true, color: theme.colorScheme.primary)),
+          Expanded(child: Figure(s('total_bookings'), '${_n(p['bookings'])}', caption: s.people(_n(p['people'])))),
+        ]),
+        const SizedBox(height: 14),
+        // Where the money came from, as a bar.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            height: 10,
+            child: total == 0
+                ? ColoredBox(color: theme.colorScheme.outlineVariant)
+                : Row(children: [
+                    if (sevas > 0) Expanded(flex: (share(sevas) * 1000).round().clamp(1, 1000), child: const ColoredBox(color: Palette.kumkum)),
+                    if (_n(tickets['amount_paise']) > 0) Expanded(flex: (share(_n(tickets['amount_paise'])) * 1000).round().clamp(1, 1000), child: const ColoredBox(color: Palette.saffron)),
+                    if (_n(gifts['amount_paise']) > 0) Expanded(flex: (share(_n(gifts['amount_paise'])) * 1000).round().clamp(1, 1000), child: const ColoredBox(color: Palette.gold)),
+                  ]),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ReportLine(label: s('sevas'), counts: '${s('n_bookings', {'n': _n(p['bookings'])})} · ${s.people(_n(p['people']))}', amount: rupees(sevas), color: Palette.kumkum),
+        ReportLine(label: s('event_tickets'), counts: '${s('n_tickets', {'n': _n(tickets['count'])})} · ${s.people(_n(tickets['people']))}', amount: rupees(tickets['amount_paise']), color: Palette.saffron),
+        ReportLine(label: s('online_hundi'), counts: s('n_gifts', {'n': _n(gifts['count'])}), amount: rupees(gifts['amount_paise']), color: Palette.gold),
+        const Divider(height: 18),
+        ReportLine(label: s('in_all'), amount: rupees(total), bold: true),
+        if (p['from'] != null && p['to'] != null && _period != 'today')
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('${p['from']} → ${p['to']}', style: theme.textTheme.bodySmall?.copyWith(fontSize: 11)),
+          ),
+      ]),
+    );
+  }
+}
+
 String _percent(dynamic v) {
   final p = (v as num?)?.toDouble() ?? 0;
   final s = p.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
@@ -218,89 +330,68 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final theme = Theme.of(context);
     final bySeva = [for (final r in (day['by_seva'] as List? ?? const [])) _map(r)];
     final tickets = _map(day['tickets']);
     final gifts = _map(day['donations']);
     final hasMore = _n(tickets['count']) > 0 || _n(gifts['count']) > 0;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Expanded(
-                  child: Figure(
-                    hasMore ? 'Paid in all' : 'Amount paid',
-                    rupees(day['total_paise'] ?? day['amount_paise']),
-                    emphasis: true,
-                    color: theme.colorScheme.primary,
-                    caption: hasMore ? 'sevas ${rupees(day['amount_paise'])}' : null,
-                  ),
-                ),
-                Expanded(child: Figure('Booked', '${_n(day['bookings'])}', caption: '${_n(day['people'])} people')),
-              ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: Figure('Received', '${_n(day['received'])}', caption: 'scanned at the counter')),
-                Expanded(child: Figure('Still to come', '${_n(day['to_receive'])}')),
-              ]),
-              if (_n(day['awaiting_payment']) > 0 || _n(day['cancelled']) > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    [
-                      if (_n(day['awaiting_payment']) > 0) '${_n(day['awaiting_payment'])} not paid yet',
-                      if (_n(day['cancelled']) > 0) '${_n(day['cancelled'])} cancelled or refunded',
-                    ].join(' · '),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ),
-              if (bySeva.isNotEmpty) ...[
-                const Divider(height: 24),
-                for (final r in bySeva)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(children: [
-                      Expanded(child: Text('${r['seva']}', overflow: TextOverflow.ellipsis)),
-                      Text('${_n(r['bookings'])} · ${_n(r['people'])} ppl', style: theme.textTheme.bodySmall),
-                      const SizedBox(width: 12),
-                      SizedBox(width: 96, child: Text(rupees(r['amount_paise']), textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600))),
-                    ]),
-                  ),
-              ],
-              if (hasMore) ...[
-                const Divider(height: 24),
-                if (_n(tickets['count']) > 0) _line(theme, 'Event tickets', '${_n(tickets['count'])} · ${_n(tickets['people'])} ppl', tickets['amount_paise']),
-                if (_n(gifts['count']) > 0) _line(theme, 'Online hundi', '${_n(gifts['count'])} gifts', gifts['amount_paise']),
-              ],
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text('See who booked ›', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
+    return SoftCard(
+      onTap: onOpen,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Expanded(
+              child: Figure(
+                hasMore ? s('in_all') : s('amount_paid'),
+                rupees(day['total_paise'] ?? day['amount_paise']),
+                emphasis: true,
+                color: theme.colorScheme.primary,
+                caption: hasMore ? '${s('sevas')} ${rupees(day['amount_paise'])}' : null,
               ),
-            ],
+            ),
+            Expanded(child: Figure(s('booked'), '${_n(day['bookings'])}', caption: s.people(_n(day['people'])))),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: Figure(s('received'), '${_n(day['received'])}', caption: s('scanned_at_counter'), color: Palette.tulsi)),
+            Expanded(child: Figure(s('still_to_come'), '${_n(day['to_receive'])}')),
+          ]),
+          if (_n(day['awaiting_payment']) > 0 || _n(day['cancelled']) > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                [
+                  if (_n(day['awaiting_payment']) > 0) s('not_paid_yet', {'n': _n(day['awaiting_payment'])}),
+                  if (_n(day['cancelled']) > 0) s('cancelled_refunded', {'n': _n(day['cancelled'])}),
+                ].join(' · '),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          if (bySeva.isNotEmpty) ...[
+            const Divider(height: 24),
+            for (final r in bySeva) ReportLine(label: '${r['seva']}', counts: '${_n(r['bookings'])} · ${s.people(_n(r['people']))}', amount: rupees(r['amount_paise'])),
+          ],
+          if (hasMore) ...[
+            const Divider(height: 24),
+            if (_n(tickets['count']) > 0) ReportLine(label: s('event_tickets'), counts: '${_n(tickets['count'])} · ${s.people(_n(tickets['people']))}', amount: rupees(tickets['amount_paise']), color: Palette.saffron),
+            if (_n(gifts['count']) > 0) ReportLine(label: s('online_hundi'), counts: s('n_gifts', {'n': _n(gifts['count'])}), amount: rupees(gifts['amount_paise']), color: Palette.gold),
+          ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(s('see_who_booked'), style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w700)),
+              Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.primary),
+            ]),
           ),
-        ),
+        ],
       ),
     );
   }
 }
-
-Widget _line(ThemeData theme, String label, String counts, dynamic paise) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(children: [
-        Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
-        Text(counts, style: theme.textTheme.bodySmall),
-        const SizedBox(width: 12),
-        SizedBox(width: 96, child: Text(rupees(paise), textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600))),
-      ]),
-    );
 
 class _SettlementTile extends StatelessWidget {
   const _SettlementTile(this.s, {required this.onTap});
@@ -311,20 +402,18 @@ class _SettlementTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = _map(s['status']);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        child: ListTile(
-          title: Text('${rupees(s['net_paise'])} · ${s['period']}'),
-          subtitle: Text([
-            '${s['items'] ?? '${_n(s['bookings_count'])} bookings'}',
-            if (s['transaction_ref'] != null) 'UTR ${s['transaction_ref']}',
-            if (s['paid_at'] != null) 'paid ${_date(s['paid_at'])}',
-          ].join(' · ')),
-          trailing: StatusChip.forStatus(_chip('${status['value']}'), '${status['label']}'),
-          onTap: onTap,
-        ),
-      ),
+    final value = '${status['value']}';
+    return ActionTile(
+      icon: value == 'paid' ? Icons.task_alt : Icons.schedule_send_outlined,
+      color: value == 'paid' ? Palette.tulsi : (value == 'pending' ? const Color(0xFFB08A10) : const Color(0xFFB3261E)),
+      title: '${rupees(s['net_paise'])} · ${s['period']}',
+      subtitle: [
+        '${s['items'] ?? '${_n(s['bookings_count'])} bookings'}',
+        if (s['transaction_ref'] != null) 'UTR ${s['transaction_ref']}',
+        if (s['paid_at'] != null) 'paid ${_date(s['paid_at'])}',
+      ].join(' · '),
+      trailing: StatusChip.forStatus(_chip(value), '${status['label']}'),
+      onTap: onTap,
     );
   }
 }
@@ -352,31 +441,30 @@ class _PayoutCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = account;
     final complete = a != null && a['is_complete'] == true;
-    return Card(
-      child: ListTile(
-        leading: Icon(Icons.account_balance_outlined, color: Theme.of(context).colorScheme.primary),
-        title: Text(complete ? '${a['account_name'] ?? 'UPI'}' : 'No payout account yet'),
-        subtitle: Text(complete
-            ? [
-                if (a['bank_name'] != null) '${a['bank_name']}',
-                if (a['account_number_masked'] != null) '${a['account_number_masked']}',
-                if (a['ifsc'] != null) '${a['ifsc']}',
-                if (a['upi_id'] != null) 'UPI ${a['upi_id']}',
-              ].join(' · ')
-            : canEdit
-                ? 'Add the bank account and verification documents to take money in the app.'
-                : 'The temple\'s owner adds this in the app.'),
-        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          switch ('${(a?['kyc'] as Map?)?['status'] ?? 'missing'}') {
-            'approved' => StatusChip.forStatus('verified', 'Payments on'),
-            'pending' => StatusChip.forStatus('pending', 'Being checked'),
-            'rejected' => StatusChip.forStatus('rejected', 'Not approved'),
-            _ => StatusChip.forStatus('pending', 'Set up'),
-          },
-          const Icon(Icons.chevron_right),
-        ]),
-        onTap: onEdit,
-      ),
+    final kyc = '${(a?['kyc'] as Map?)?['status'] ?? 'missing'}';
+    return ActionTile(
+      icon: Icons.account_balance_outlined,
+      title: complete ? '${a['account_name'] ?? 'UPI'}' : 'No payout account yet',
+      subtitle: complete
+          ? [
+              if (a['bank_name'] != null) '${a['bank_name']}',
+              if (a['account_number_masked'] != null) '${a['account_number_masked']}',
+              if (a['ifsc'] != null) '${a['ifsc']}',
+              if (a['upi_id'] != null) 'UPI ${a['upi_id']}',
+            ].join(' · ')
+          : canEdit
+              ? 'Add the bank account and verification documents to take money in the app.'
+              : 'The temple\'s owner adds this in the app.',
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        switch (kyc) {
+          'approved' => StatusChip.forStatus('verified', 'Payments on'),
+          'pending' => StatusChip.forStatus('pending', 'Being checked'),
+          'rejected' => StatusChip.forStatus('rejected', 'Not approved'),
+          _ => StatusChip.forStatus('pending', 'Set up'),
+        },
+        const Icon(Icons.chevron_right),
+      ]),
+      onTap: onEdit,
     );
   }
 }
@@ -390,13 +478,14 @@ class SettlementsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payouts')),
+      appBar: AppBar(title: Text(S.of(context)('payouts'))),
       body: AsyncList<Json>(
         load: () async {
           final res = await context.read<Session>().api.get('temples/$templeId/settlements');
           return [for (final r in res['data'] as List) _map(r)];
         },
-        empty: 'No payouts yet.',
+        empty: S.of(context)('no_payouts'),
+        emptyIcon: Icons.receipt_long_outlined,
         itemBuilder: (context, s, reload) => _SettlementTile(
           s,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettlementDetailScreen(templeId: templeId, settlementId: _n(s['id'])))),
@@ -461,89 +550,122 @@ class SettlementDetails extends StatelessWidget {
     final gifts = [for (final g in (s['donations'] as List? ?? const [])) _map(g)];
     final breakdown = _map(s['breakdown']);
     final theme = Theme.of(context);
-
-    Widget row(String label, String value) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(width: 130, child: Text(label, style: theme.textTheme.bodySmall)),
-            Expanded(child: Text(value)),
-          ]),
-        );
+    final paid = '${status['value']}' == 'paid';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        Row(children: [
-          Expanded(child: Text('${s['reference']}', style: theme.textTheme.titleMedium?.copyWith(fontFamily: 'monospace'))),
-          StatusChip.forStatus(_chip('${status['value']}'), '${status['label']}'),
-        ]),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Figure('To the temple', rupees(s['net_paise']), emphasis: true, color: theme.colorScheme.primary),
-              const Divider(height: 24),
-              row('Seva days', '${s['period']}'),
-              if (s['items'] != null) row('Covers', '${s['items']}') else row('Bookings', '${_n(s['bookings_count'])}'),
-              for (final (k, label) in const [('bookings', 'Seva bookings'), ('tickets', 'Event tickets'), ('donations', 'Hundi gifts')])
-                if (_n(_map(breakdown[k])['count']) > 0) row(label, '${_n(_map(breakdown[k])['count'])} · ${rupees(_map(breakdown[k])['amount_paise'])}'),
-              row('Paid by devotees', rupees(s['gross_paise'])),
-              row(
-                'Platform fee',
-                '${rupees(s['fee_paise'])} (${_percent(s['fee_percent'])}'
-                    '${s['donation_fee_percent'] != null && _n(_map(breakdown['donations'])['count']) > 0 ? '; ${_percent(s['donation_fee_percent'])} on hundi' : ''})',
+        HeroPanel(
+          gradient: paid ? Palette.tulsiGradient : Palette.kumkumGradient,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text('${s['reference']}', style: const TextStyle(fontFamily: 'monospace', fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
+                child: Text('${status['label']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
               ),
-              if (s['method_label'] != null) row('Paid by', '${s['method_label']}'),
-              if (s['transaction_ref'] != null) row('Reference (UTR)', '${s['transaction_ref']}'),
-              if (s['paid_at'] != null) row('Paid on', _date(s['paid_at'])),
-              if (s['note'] != null) row('Note', '${s['note']}'),
-              if (s['cancel_reason'] != null) row('Cancelled', '${s['cancel_reason']}'),
             ]),
-          ),
+            const SizedBox(height: 12),
+            const Text('TO THE TEMPLE', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+            Text(rupees(s['net_paise']), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 32, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        SoftCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            KeyValueRow('Seva days', '${s['period']}'),
+            if (s['items'] != null) KeyValueRow('Covers', '${s['items']}') else KeyValueRow('Bookings', '${_n(s['bookings_count'])}'),
+            for (final (k, label) in const [('bookings', 'Seva bookings'), ('tickets', 'Event tickets'), ('donations', 'Hundi gifts')])
+              if (_n(_map(breakdown[k])['count']) > 0) KeyValueRow(label, '${_n(_map(breakdown[k])['count'])} · ${rupees(_map(breakdown[k])['amount_paise'])}'),
+            const Divider(height: 18),
+            KeyValueRow('Paid by devotees', rupees(s['gross_paise'])),
+            KeyValueRow(
+              'Platform fee',
+              '${rupees(s['fee_paise'])} (${_percent(s['fee_percent'])}'
+                  '${s['donation_fee_percent'] != null && _n(_map(breakdown['donations'])['count']) > 0 ? '; ${_percent(s['donation_fee_percent'])} on hundi' : ''})',
+            ),
+            KeyValueRow('To the temple', rupees(s['net_paise']), emphasis: true, valueColor: theme.colorScheme.primary),
+            if (s['method_label'] != null || s['transaction_ref'] != null || s['paid_at'] != null) const Divider(height: 18),
+            if (s['method_label'] != null) KeyValueRow('Paid by', '${s['method_label']}'),
+            if (s['transaction_ref'] != null) KeyValueRow('Reference (UTR)', '${s['transaction_ref']}'),
+            if (s['paid_at'] != null) KeyValueRow('Paid on', _date(s['paid_at'])),
+            if (s['note'] != null) KeyValueRow('Note', '${s['note']}'),
+            if (s['cancel_reason'] != null) KeyValueRow('Cancelled', '${s['cancel_reason']}'),
+          ]),
         ),
         if (footer != null) footer!,
         if (bookings.isNotEmpty) ...[
           const SectionTitle('Bookings in this payout'),
           for (final b in bookings)
-            Card(
-              child: ListTile(
-                dense: true,
-                title: Text('${b['devotee_name']} · ${_n(b['people'])} ${_n(b['people']) == 1 ? 'person' : 'people'}'),
-                subtitle: Text('${b['seva'] ?? ''} · ${b['booked_for']} · Ref ${b['reference']}'),
-                trailing: Text(rupees(b['amount_paise']), style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
+            _ItemTile(
+              icon: Icons.local_fire_department_outlined,
+              color: Palette.kumkum,
+              title: '${b['devotee_name']} · ${_n(b['people'])} ${_n(b['people']) == 1 ? 'person' : 'people'}',
+              subtitle: '${b['seva'] ?? ''} · ${b['booked_for']} · Ref ${b['reference']}',
+              amount: rupees(b['amount_paise']),
             ),
         ],
         if (tickets.isNotEmpty) ...[
           const SectionTitle('Event tickets in this payout'),
           for (final t in tickets)
-            Card(
-              child: ListTile(
-                dense: true,
-                title: Text('${t['devotee_name'] ?? 'Devotee'} · ${_n(t['people'])} ${_n(t['people']) == 1 ? 'person' : 'people'}'),
-                subtitle: Text('${t['event'] ?? ''} · ${t['occurs_on']} · Ref ${t['reference']}'),
-                trailing: Text(rupees(t['amount_paise']), style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
+            _ItemTile(
+              icon: Icons.celebration_outlined,
+              color: Palette.saffron,
+              title: '${t['devotee_name'] ?? 'Devotee'} · ${_n(t['people'])} ${_n(t['people']) == 1 ? 'person' : 'people'}',
+              subtitle: '${t['event'] ?? ''} · ${t['occurs_on']} · Ref ${t['reference']}',
+              amount: rupees(t['amount_paise']),
             ),
         ],
         if (gifts.isNotEmpty) ...[
           const SectionTitle('Hundi gifts in this payout'),
           for (final g in gifts)
-            Card(
-              child: ListTile(
-                dense: true,
-                title: Text('${g['donor'] ?? 'A devotee'}'),
-                subtitle: Text([
-                  if (_map(g['purpose'])['label'] != null) '${_map(g['purpose'])['label']}',
-                  if (g['paid_on'] != null) '${g['paid_on']}',
-                  'Ref ${g['reference']}',
-                ].join(' · ')),
-                trailing: Text(rupees(g['amount_paise']), style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
+            _ItemTile(
+              icon: Icons.volunteer_activism_outlined,
+              color: Palette.gold,
+              title: '${g['donor'] ?? 'A devotee'}',
+              subtitle: [
+                if (_map(g['purpose'])['label'] != null) '${_map(g['purpose'])['label']}',
+                if (g['paid_on'] != null) '${g['paid_on']}',
+                'Ref ${g['reference']}',
+              ].join(' · '),
+              amount: rupees(g['amount_paise']),
             ),
         ],
       ],
+    );
+  }
+}
+
+class _ItemTile extends StatelessWidget {
+  const _ItemTile({required this.icon, required this.color, required this.title, required this.subtitle, required this.amount});
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SoftCard(
+        padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+        child: Row(children: [
+          IconBadge(icon, color: color, size: 34),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: theme.textTheme.titleSmall),
+              Text(subtitle, style: theme.textTheme.bodySmall),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          Text(amount, style: theme.textTheme.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+        ]),
+      ),
     );
   }
 }
@@ -611,21 +733,27 @@ class _PayoutAccountScreenState extends State<PayoutAccountScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          const Text('The trust\'s own account. Settlements are transferred here. A change is checked by the platform, usually by calling you, before money is sent to it.'),
-          const SizedBox(height: 16),
-          ApiTextField(controller: _name, label: 'Account holder name', field: 'account_name', error: _error),
+          const InfoBanner(
+            icon: Icons.account_balance_outlined,
+            title: 'The trust\'s own account',
+            body: 'Settlements are transferred here. A change is checked by the platform, usually by calling you, before money is sent to it.',
+            color: Palette.sky,
+          ),
+          const SizedBox(height: 8),
+          ApiTextField(controller: _name, label: 'Account holder name', field: 'account_name', error: _error, prefixIcon: Icons.person_outline),
           ApiTextField(
             controller: _number,
             label: 'Account number',
             field: 'account_number',
             error: _error,
             keyboardType: TextInputType.number,
+            prefixIcon: Icons.numbers,
             hint: masked == null ? null : 'On file: $masked · leave blank to keep',
           ),
-          ApiTextField(controller: _ifsc, label: 'IFSC', field: 'ifsc', error: _error, hint: 'e.g. SBIN0001234'),
-          ApiTextField(controller: _bank, label: 'Bank and branch', field: 'bank_name', error: _error),
-          const Padding(padding: EdgeInsets.fromLTRB(0, 8, 0, 8), child: Text('Or, or as well:')),
-          ApiTextField(controller: _upi, label: 'UPI ID', field: 'upi_id', error: _error, hint: 'name@bank'),
+          ApiTextField(controller: _ifsc, label: 'IFSC', field: 'ifsc', error: _error, hint: 'e.g. SBIN0001234', prefixIcon: Icons.tag),
+          ApiTextField(controller: _bank, label: 'Bank and branch', field: 'bank_name', error: _error, prefixIcon: Icons.account_balance_outlined),
+          const Padding(padding: EdgeInsets.fromLTRB(4, 8, 0, 8), child: Text('Or, or as well:')),
+          ApiTextField(controller: _upi, label: 'UPI ID', field: 'upi_id', error: _error, hint: 'name@bank', prefixIcon: Icons.alternate_email),
           const SizedBox(height: 8),
           FilledButton(
             onPressed: _saving ? null : _save,
@@ -651,6 +779,7 @@ class FeeShareCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     double pct(dynamic v) => ((v as num?)?.toDouble() ?? 0).clamp(0, 100).toDouble();
     final fee = pct(feePercent);
     final gift = donationFeePercent == null ? null : pct(donationFeePercent);
@@ -684,16 +813,18 @@ class FeeShareCard extends StatelessWidget {
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Your share', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 10),
-          row('Sevas and event tickets', fee),
-          if (gift != null) row('Online hundi gifts', gift),
+    return SoftCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const IconBadge(Icons.pie_chart_outline, size: 30, color: Palette.gold),
+          const SizedBox(width: 10),
+          Text(s('your_share'), style: theme.textTheme.titleMedium),
         ]),
-      ),
+        const SizedBox(height: 12),
+        row('Sevas and event tickets', fee),
+        if (gift != null) row('Online hundi gifts', gift),
+      ]),
     );
   }
 }

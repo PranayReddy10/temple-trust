@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -91,7 +92,8 @@ class _TimingsScreenState extends State<TimingsScreen> {
         ),
         itemBuilder: (context, t, reload) => Card(
           child: ListTile(
-            title: Text('${t['day_label'] ?? 'Every day'} · ${t['window']}'),
+            leading: const IconBadge(Icons.schedule, color: Palette.sky),
+            title: Text('${t['window']}'),
             subtitle: Text([
               kinds[t['kind']] ?? t['kind'],
               if (t['label'] != null) t['label'],

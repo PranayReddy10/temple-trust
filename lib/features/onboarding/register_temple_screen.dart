@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/live_location.dart';
+import '../../core/photo_crop.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 
@@ -45,7 +46,7 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
   String _role = 'trustee';
   TimeOfDay? _opens;
   TimeOfDay? _closes;
-  final List<XFile> _photos = [];
+  final List<CroppedPhoto> _photos = [];
   LiveFix? _fix;
   bool _busy = false;
   ApiException? _error;
@@ -62,9 +63,12 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
     final max = context.read<Session>().options.maxRegistrationPhotos;
     final picked = await ImagePicker().pickMultiImage(imageQuality: 85, maxWidth: 2400);
     if (picked.isEmpty) return;
-    setState(() {
-      _photos.addAll(picked.take(max - _photos.length));
-    });
+    // Each framed at 4:3, the shape devotees see every temple photo in.
+    for (final (i, f) in picked.take(max - _photos.length).toList().indexed) {
+      if (!mounted) return;
+      final c = await cropPhoto(context, f, title: picked.length == 1 ? 'Crop photo' : 'Crop photo ${i + 1} of ${picked.length}');
+      if (c != null) setState(() => _photos.add(c));
+    }
   }
 
   Future<void> _submit() async {
@@ -84,7 +88,7 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
     final session = context.read<Session>();
     try {
       final files = <UploadFile>[
-        for (var i = 0; i < _photos.length; i++) UploadFile(field: 'photos[$i]', filename: _photos[i].name, bytes: await _photos[i].readAsBytes()),
+        for (var i = 0; i < _photos.length; i++) UploadFile(field: 'photos[$i]', filename: _photos[i].filename, bytes: _photos[i].bytes),
       ];
       await session.api.multipart('registrations',
           fields: {
@@ -174,7 +178,12 @@ class _RegisterTempleScreenState extends State<RegisterTempleScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final p in _photos) Chip(label: Text(p.name, overflow: TextOverflow.ellipsis), onDeleted: () => setState(() => _photos.remove(p))),
+                for (final p in _photos)
+                  Chip(
+                    avatar: ClipRRect(borderRadius: BorderRadius.circular(6), child: Image.memory(p.bytes, width: 28, height: 21, fit: BoxFit.cover)),
+                    label: Text(p.filename, overflow: TextOverflow.ellipsis),
+                    onDeleted: () => setState(() => _photos.remove(p)),
+                  ),
                 if (_photos.length < options.maxRegistrationPhotos) ActionChip(avatar: const Icon(Icons.add_a_photo_outlined, size: 18), label: const Text('Add photos'), onPressed: _addPhotos),
               ],
             ),

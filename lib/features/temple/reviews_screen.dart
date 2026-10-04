@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -78,7 +79,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${devotee['name'] ?? 'Devotee'}${r['visited_on'] != null ? ' · visited ${r['visited_on']}' : ''}', style: theme.textTheme.titleSmall),
+                  Row(children: [
+                    InitialsAvatar('${devotee['name'] ?? 'Devotee'}', size: 36, color: r['temple_reply'] == null ? Palette.saffron : Palette.tulsi),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('${devotee['name'] ?? 'Devotee'}${r['visited_on'] != null ? ' · visited ${r['visited_on']}' : ''}', style: theme.textTheme.titleSmall)),
+                  ]),
                   const SizedBox(height: 6),
                   Wrap(spacing: 6, runSpacing: 4, children: [
                     for (final x in ratings)

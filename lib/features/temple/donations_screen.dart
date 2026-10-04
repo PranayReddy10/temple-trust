@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -82,8 +83,6 @@ class _DonationsScreenState extends State<DonationsScreen> {
           final total = _map(d['total']);
           final items = [for (final r in (d['items'] as List? ?? const [])) _map(r)];
           final accepts = d['accepts_donations'] == true;
-          final theme = Theme.of(context);
-
           return RefreshIndicator(
             onRefresh: () async {
               _reload();
@@ -109,22 +108,22 @@ class _DonationsScreenState extends State<DonationsScreen> {
                         ),
                 ),
                 const SizedBox(height: 10),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(children: [
-                      Row(children: [
-                        Expanded(
-                          child: Figure('Today', rupees(today['amount_paise']), emphasis: true, color: theme.colorScheme.primary, caption: _gifts(today['count'])),
-                        ),
-                        Expanded(child: Figure('This month', rupees(month['amount_paise']), caption: _gifts(month['count']))),
-                      ]),
-                      const SizedBox(height: 12),
-                      Row(children: [
-                        Expanded(child: Figure('In all', rupees(total['amount_paise']), caption: _gifts(total['count']))),
-                      ]),
+                HeroPanel(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('HUNDI TODAY', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(rupees(today['amount_paise']), style: const TextStyle(fontFamily: TrustTheme.serif, fontSize: 32, fontWeight: FontWeight.w600, height: 1.1)),
+                    ),
+                    Text(_gifts(today['count']), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(child: _Panel('This month', rupees(month['amount_paise']), _gifts(month['count']))),
+                      Expanded(child: _Panel('In all', rupees(total['amount_paise']), _gifts(total['count']))),
                     ]),
-                  ),
+                  ]),
                 ),
                 const SectionTitle('Gifts'),
                 TextField(
@@ -159,6 +158,7 @@ class _DonationsScreenState extends State<DonationsScreen> {
                 for (final g in items)
                   Card(
                     child: ListTile(
+                      leading: IconBadge(Icons.volunteer_activism_outlined, color: g['settled'] == true ? Palette.tulsi : Palette.gold),
                       title: Text('${g['donor'] ?? 'A devotee'} · ${g['amount'] ?? rupees(g['amount_paise'])}'),
                       subtitle: Text([
                         if (_map(g['purpose'])['label'] != null) '${_map(g['purpose'])['label']}',
@@ -175,6 +175,23 @@ class _DonationsScreenState extends State<DonationsScreen> {
         },
       ),
     );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  const _Panel(this.label, this.value, this.caption);
+
+  final String label;
+  final String value;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
+      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.2))),
+      Text(caption, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+    ]);
   }
 }
 

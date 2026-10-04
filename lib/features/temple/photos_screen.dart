@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/models.dart';
+import '../../core/photo_crop.dart';
 import '../../core/session.dart';
 import '../../core/widgets.dart';
 
@@ -49,11 +50,20 @@ class _PhotosScreenState extends State<PhotosScreen> {
     );
     if (category == null) return;
 
+    // Each photo is framed at 4:3 here, the shape devotees see it in.
+    final cropped = <CroppedPhoto>[];
+    for (final (i, f) in picked.indexed) {
+      if (!mounted) return;
+      final c = await cropPhoto(context, f, title: picked.length == 1 ? 'Crop photo' : 'Crop photo ${i + 1} of ${picked.length}');
+      if (c != null) cropped.add(c);
+    }
+    if (cropped.isEmpty || !mounted) return;
+
     setState(() => _uploading = true);
     var done = 0;
     try {
-      for (final f in picked) {
-        await session.api.multipart('temples/${widget.templeId}/photos', fields: {'category': category}, files: [UploadFile(field: 'photo', filename: f.name, bytes: await f.readAsBytes())]);
+      for (final c in cropped) {
+        await session.api.multipart('temples/${widget.templeId}/photos', fields: {'category': category}, files: [UploadFile(field: 'photo', filename: c.filename, bytes: c.bytes)]);
         done++;
       }
     } on ApiException catch (e) {

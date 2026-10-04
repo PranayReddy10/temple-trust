@@ -31,6 +31,21 @@ Chromium), which also writes the logo shown on the welcome screen.
 
 An account with no approved temple can see nothing but its own requests.
 
+## Look and languages
+
+The app is kumkum-led, with a serif for headings and the same Noto faces as
+the devotee app (`lib/core/theme.dart`, `assets/fonts`). The home screen
+leads with the counter's **Scan** panel, then each temple with today's seva
+money and hundi; the temple dashboard opens on a collapsing cover, today's
+figures, a **Financial report** card (this month, due to the temple, paid to
+date, all time) and the management list.
+
+The interface shows in **English, Telugu, Hindi, Tamil or Kannada**: the
+globe button on the home screen (and under Account → Preferences) picks the
+language, which is kept on the device and sent to the API as
+`Accept-Language`. Strings live in `lib/core/l10n.dart` as one map, like the
+devotee app's; temple content stays as the temple entered it.
+
 ## What a team manages
 
 | Screen | What it does |
@@ -44,7 +59,7 @@ An account with no approved temple can see nothing but its own requests.
 | Photos | Upload, choose the cover, hide or show, caption, delete |
 | Temple home | Cover photo (change it from the camera, the phone, or one already uploaded), the full address with district and state, today's seva money, **today's hundi** and the month's, and **Your share**: what the temple receives and what the platform keeps, on sevas/tickets and on hundi gifts. Pull down to refresh on every screen |
 | Seva bookings | Tap one for its full details as on the devotee's ticket (date, time, people, reference, name, gotram, payment) and **Mark received**. By day, with gotram, nakshatram, phone and payment, and the day's totals: booked, people, received, amount paid |
-| Finance | Any day's bookings and amount, by seva; the month; what is due to the temple after the platform fee, being paid and paid to date; every payout with its bank reference (UTR) and the bookings it covers; the payout bank account or UPI id (owner only, verified by staff after any change) |
+| Finance | What is due to the temple first; the **financial report** by period — today, this month, this year, all time — with sevas, event tickets and hundi gifts and their share of the total; any day's bookings and amount, by seva; what is being paid and paid to date; every payout with its bank reference (UTR) and the bookings it covers; the payout bank account or UPI id (owner only, verified by staff after any change) |
 | Events: bhajan gatherings & tickets | Type *Bhajan gathering*, every-week repetition, mandali name, open to all, song list, and *Devotees can join in the app*: free "I'll join" or a ticket price per person with a limit per date. Each event shows who is going; **Attendees** lists them by date with the amount paid |
 | Payments in the app | Before paid sevas, paid event tickets or the online hundi can be switched on, the owner adds the bank account and **verification**: name and Aadhaar number, Aadhaar front and back, a proof that the temple is theirs to represent, and a selfie. Staff check them in Admin → Finance → Temple balances and approve or reject with a reason; any change pauses payments until approved again |
 | Online hundi | Gifts devotees made in the app, today / this month / in all, with donor ("A devotee" when anonymous) and purpose; the owner switches the hundi on or off |

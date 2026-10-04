@@ -12,8 +12,10 @@ import 'package:temple_trust/features/temple/bookings_screen.dart';
 void main() {
   testWidgets('the seva bookings list is searched by name or phone on the server', (tester) async {
     final queries = <String?>[];
+    final statuses = <String?>[];
     final client = MockClient((req) async {
       queries.add(req.url.queryParameters['q']);
+      statuses.add(req.url.queryParameters['status']);
       final q = req.url.queryParameters['q'];
       final all = [
         {'reference': 'SVAAAA2222', 'devotee_name': 'Lakshmi', 'devotee_phone': '98480 22338', 'people': 2, 'booked_for': '2026-10-10', 'puja': {'name': 'Archana'}, 'status': {'value': 'confirmed', 'label': 'Confirmed'}},
@@ -39,5 +41,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
     expect(find.text('No booking matches "nobody".'), findsOneWidget);
+
+    // Only the successful bookings are asked for until a filter says otherwise.
+    expect(statuses.toSet(), {'successful'});
+    await tester.tap(find.text('Cancelled'));
+    await tester.pumpAndSettle();
+    expect(statuses.last, 'cancelled');
   });
 }

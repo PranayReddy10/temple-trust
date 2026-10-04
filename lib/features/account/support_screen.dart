@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -58,6 +59,7 @@ class _SupportScreenState extends State<SupportScreen> {
           final messages = (t['messages'] as List? ?? const []);
           return Card(
             child: ListTile(
+              leading: IconBadge(status['is_open'] == true ? Icons.forum_outlined : Icons.task_alt, color: status['is_open'] == true ? const Color(0xFFB08A10) : Palette.tulsi),
               title: Text('${t['subject']}'),
               subtitle: Text([
                 '${t['reference']}',
@@ -283,7 +285,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
                 child: Row(children: [
                   Expanded(child: TextField(controller: _reply, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: 'Write a reply'))),
                   const SizedBox(width: 8),
-                  IconButton.filled(onPressed: _busy ? null : _send, icon: const Icon(Icons.send)),
+                  SendButton(onPressed: _send, busy: _busy),
                 ]),
               ),
             ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -49,11 +50,12 @@ class _ClosuresScreenState extends State<ClosuresScreen> {
             child: ListTile(
               title: Text('${c['reason']}'),
               subtitle: Text([
+                if (c['is_active_today'] == true) 'Today',
                 dates,
                 c['is_full_day'] == true ? 'Closed all day' : 'Open ${showTime(c['opens_at']) ?? '?'} – ${showTime(c['closes_at']) ?? '?'}',
                 if (c['notes'] != null) c['notes'],
               ].join(' · ')),
-              leading: c['is_active_today'] == true ? const StatusChip('Today') : null,
+              leading: c['is_active_today'] == true ? const IconBadge(Icons.today, color: Palette.kumkum, filled: true) : const IconBadge(Icons.event_busy_outlined, color: Color(0xFF8D6E63)),
               onTap: () => _edit(c),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
