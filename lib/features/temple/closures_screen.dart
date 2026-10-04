@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -22,8 +23,13 @@ class _ClosuresScreenState extends State<ClosuresScreen> {
   final _list = GlobalKey<AsyncListState<Json>>();
 
   Future<List<Json>> _load() async {
-    final res = await context.read<Session>().api.get('temples/${widget.templeId}/closures');
-    return [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()];
+    final res = await context
+        .read<Session>()
+        .api
+        .get('temples/${widget.templeId}/closures');
+    return [
+      for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()
+    ];
   }
 
   Future<void> _edit([Json? row]) async {
@@ -37,33 +43,52 @@ class _ClosuresScreenState extends State<ClosuresScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Closures')),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add closure')),
+      appBar: AppBar(title: Text(s('closures'))),
+      floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _edit(),
+          icon: const Icon(Icons.add),
+          label: Text(s('tp_add_closure'))),
       body: AsyncList<Json>(
         key: _list,
         load: _load,
-        empty: 'No closures. Add eclipses, renovations or days with changed hours so devotees are not turned away at the gate.',
+        empty: s('tp_closures_empty'),
         itemBuilder: (context, c, reload) {
-          final dates = c['starts_on'] == c['ends_on'] ? '${c['starts_on']}' : '${c['starts_on']} → ${c['ends_on']}';
+          final dates = c['starts_on'] == c['ends_on']
+              ? '${c['starts_on']}'
+              : '${c['starts_on']} → ${c['ends_on']}';
           return Card(
             child: ListTile(
               title: Text('${c['reason']}'),
               subtitle: Text([
-                if (c['is_active_today'] == true) 'Today',
+                if (c['is_active_today'] == true) s('today'),
                 dates,
-                c['is_full_day'] == true ? 'Closed all day' : 'Open ${showTime(c['opens_at']) ?? '?'} – ${showTime(c['closes_at']) ?? '?'}',
+                c['is_full_day'] == true
+                    ? s('tp_closed_all_day')
+                    : s('tp_open_from_to', {
+                        'from': showTime(c['opens_at']) ?? '?',
+                        'to': showTime(c['closes_at']) ?? '?'
+                      }),
                 if (c['notes'] != null) c['notes'],
               ].join(' · ')),
-              leading: c['is_active_today'] == true ? const IconBadge(Icons.today, color: Palette.kumkum, filled: true) : const IconBadge(Icons.event_busy_outlined, color: Color(0xFF8D6E63)),
+              leading: c['is_active_today'] == true
+                  ? const IconBadge(Icons.today,
+                      color: Palette.kumkum, filled: true)
+                  : const IconBadge(Icons.event_busy_outlined,
+                      color: Color(0xFF8D6E63)),
               onTap: () => _edit(c),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () async {
-                  if (!await confirm(context, 'Remove this closure?')) return;
+                  if (!await confirm(context, s('tp_remove_closure_q'),
+                      action: s('tp_delete'))) {
+                    return;
+                  }
                   if (!context.mounted) return;
                   try {
-                    await context.read<Session>().api.delete('temples/${widget.templeId}/closures/${c['id']}');
+                    await context.read<Session>().api.delete(
+                        'temples/${widget.templeId}/closures/${c['id']}');
                     reload();
                   } catch (e) {
                     if (context.mounted) showError(context, e);
@@ -91,8 +116,11 @@ class _ClosureForm extends StatefulWidget {
 class _ClosureFormState extends State<_ClosureForm> {
   late final _reason = TextEditingController(text: widget.row?['reason'] ?? '');
   late final _notes = TextEditingController(text: widget.row?['notes'] ?? '');
-  late DateTime? _from = DateTime.tryParse('${widget.row?['starts_on']}') ?? DateTime.now();
-  late DateTime? _to = widget.row == null ? null : DateTime.tryParse('${widget.row?['ends_on']}');
+  late DateTime? _from =
+      DateTime.tryParse('${widget.row?['starts_on']}') ?? DateTime.now();
+  late DateTime? _to = widget.row == null
+      ? null
+      : DateTime.tryParse('${widget.row?['ends_on']}');
   late bool _fullDay = widget.row?['is_full_day'] ?? true;
   late TimeOfDay? _opens = parseTime(widget.row?['opens_at']);
   late TimeOfDay? _closes = parseTime(widget.row?['closes_at']);
@@ -125,7 +153,8 @@ class _ClosureFormState extends State<_ClosureForm> {
       if (widget.row == null) {
         await api.post('temples/${widget.templeId}/closures', body);
       } else {
-        await api.put('temples/${widget.templeId}/closures/${widget.row!['id']}', body);
+        await api.put(
+            'temples/${widget.templeId}/closures/${widget.row!['id']}', body);
       }
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -137,37 +166,76 @@ class _ClosureFormState extends State<_ClosureForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.row == null ? 'Add closure' : 'Edit closure', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+                widget.row == null ? s('tp_add_closure') : s('tp_edit_closure'),
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            ApiTextField(controller: _reason, label: 'Reason', hint: 'e.g. Chandra grahanam', field: 'reason', error: _error, required: true),
+            ApiTextField(
+                controller: _reason,
+                label: s('reason'),
+                hint: s('tp_reason_hint'),
+                field: 'reason',
+                error: _error,
+                required: true),
             Row(children: [
-              Expanded(child: DateField(label: 'From', value: _from, onChanged: (d) => setState(() => _from = d))),
+              Expanded(
+                  child: DateField(
+                      label: s('tp_from'),
+                      value: _from,
+                      onChanged: (d) => setState(() => _from = d))),
               const SizedBox(width: 12),
-              Expanded(child: DateField(label: 'To (optional)', value: _to, clearable: true, onChanged: (d) => setState(() => _to = d))),
+              Expanded(
+                  child: DateField(
+                      label: s('tp_to_optional'),
+                      value: _to,
+                      clearable: true,
+                      onChanged: (d) => setState(() => _to = d))),
             ]),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Closed all day'),
+              title: Text(s('tp_closed_all_day')),
               value: _fullDay,
               onChanged: (v) => setState(() => _fullDay = v),
             ),
             if (!_fullDay)
               Row(children: [
-                Expanded(child: TimeField(label: 'Opens', value: _opens, onChanged: (t) => setState(() => _opens = t))),
+                Expanded(
+                    child: TimeField(
+                        label: s('tp_opens'),
+                        value: _opens,
+                        onChanged: (t) => setState(() => _opens = t))),
                 const SizedBox(width: 12),
-                Expanded(child: TimeField(label: 'Closes', value: _closes, onChanged: (t) => setState(() => _closes = t))),
+                Expanded(
+                    child: TimeField(
+                        label: s('tp_closes'),
+                        value: _closes,
+                        onChanged: (t) => setState(() => _closes = t))),
               ]),
             const SizedBox(height: 12),
-            ApiTextField(controller: _notes, label: 'Notes', field: 'notes', error: _error, maxLines: 2),
-            if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(_error!.details, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-            FilledButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Saving…' : 'Save')),
+            ApiTextField(
+                controller: _notes,
+                label: s('tp_notes'),
+                field: 'notes',
+                error: _error,
+                maxLines: 2),
+            if (_error != null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(_error!.details,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error))),
+            FilledButton(
+                onPressed: _busy ? null : _save,
+                child: Text(_busy ? s('saving') : s('save'))),
           ],
         ),
       ),
