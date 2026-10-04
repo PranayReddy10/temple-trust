@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
+import '../../core/l10n.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -11,8 +12,9 @@ import 'booking_detail_screen.dart';
 
 typedef Json = Map<String, dynamic>;
 
-/// Festivals, programs and announcements. Publishing may wait for the
-/// editors' review, depending on the temple's verification level.
+/// Festivals, programs and announcements. The temple's owner publishes
+/// directly, and approves or turns down events devotees propose and
+/// managers write; those wait for the owner (or our editors) until then.
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key, required this.templeId});
 
@@ -28,6 +30,43 @@ class _EventsScreenState extends State<EventsScreen> {
   Future<List<Json>> _load() async {
     final res = await context.read<Session>().api.get('temples/${widget.templeId}/events');
     return [for (final r in res['data'] as List) (r as Map).cast<String, dynamic>()];
+  }
+
+  Future<void> _approve(Json e) async {
+    final s = S.of(context);
+    try {
+      await context.read<Session>().api.post('temples/${widget.templeId}/events/${e['id']}/approve');
+      if (!mounted) return;
+      showMessage(context, s('event_approved'));
+      _list.currentState?.reload();
+    } on ApiException catch (err) {
+      if (mounted) showMessage(context, err.message);
+    }
+  }
+
+  Future<void> _reject(Json e) async {
+    final s = S.of(context);
+    final note = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${s('reject')}: ${e['title']}'),
+        content: TextField(controller: note, autofocus: true, maxLines: 3, decoration: InputDecoration(labelText: s('reject_reason'))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s('cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(context, note.text.trim().isNotEmpty), child: Text(s('reject'))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await context.read<Session>().api.post('temples/${widget.templeId}/events/${e['id']}/reject', {'note': note.text.trim()});
+      if (!mounted) return;
+      showMessage(context, s('event_rejected'));
+      _list.currentState?.reload();
+    } on ApiException catch (err) {
+      if (mounted) showMessage(context, err.message);
+    }
   }
 
   Future<void> _edit([Json? row]) async {
@@ -61,12 +100,27 @@ class _EventsScreenState extends State<EventsScreen> {
                 subtitle: Text([
                   '${e['date_label']}',
                   if (e['group_name'] != null) '${e['group_name']}',
-                  if (e['review_note'] != null) 'Editor: ${e['review_note']}',
+                  if (e['raised_by'] != null) S.of(context)('proposed_by', {'name': e['raised_by']}),
+                  if (e['review_note'] != null) 'Reason: ${e['review_note']}',
                 ].join('\n')),
-                isThreeLine: e['review_note'] != null || e['group_name'] != null,
+                isThreeLine: e['review_note'] != null || e['group_name'] != null || e['raised_by'] != null,
                 trailing: StatusChip.forStatus('${status['value']}', '${status['label'] ?? status['value']}'),
                 onTap: () => _edit(e),
               ),
+              // Waiting for approval, and this person (the owner) decides.
+              if (e['can_review'] == true)
+                Container(
+                  color: Palette.gold.withValues(alpha: 0.12),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                  child: Row(children: [
+                    const Icon(Icons.hourglass_top, size: 18, color: Palette.gold),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(S.of(context)('waiting_approval'), style: const TextStyle(fontWeight: FontWeight.w600))),
+                    TextButton(onPressed: () => _reject(e), child: Text(S.of(context)('reject'))),
+                    const SizedBox(width: 4),
+                    FilledButton(onPressed: () => _approve(e), child: Text(S.of(context)('approve'))),
+                  ]),
+                ),
               if (e['type'] == 'bhajan' || e['recurrence'] == 'weekly' || joinable)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
@@ -362,7 +416,7 @@ class _EventFormState extends State<EventForm> {
       ]);
       if (!mounted) return;
       final status = ((res['data'] as Map?)?['status'] as Map?)?['value'];
-      if (status == 'pending_review') showMessage(context, 'Sent to the editors. It goes live once they approve it.');
+      if (status == 'pending_review') showMessage(context, 'Sent for approval. It goes live once the temple\'s owner approves it.');
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {

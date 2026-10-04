@@ -71,6 +71,11 @@ class TrustTemple {
   final String? imageUrl;
   final Map<String, dynamic> raw;
 
+  /// The temple's page on the website, to share; null until it is published.
+  String? get publicUrl => _s(raw['public_url']);
+
+  bool get isOwner => accessLevel == 'owner';
+
   Map<String, dynamic> get profile => (raw['profile'] as Map?)?.cast<String, dynamic>() ?? const {};
   Map<String, dynamic> get stats => (raw['stats'] as Map?)?.cast<String, dynamic>() ?? const {};
 

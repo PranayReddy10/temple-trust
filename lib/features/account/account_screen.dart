@@ -65,6 +65,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final s = S.of(context);
     final theme = Theme.of(context);
     final user = context.watch<Session>().account?.user;
+    final temples = context.watch<Session>().account?.temples ?? const [];
     final language = context.watch<LocaleController>().language;
     return Scaffold(
       appBar: AppBar(title: Text(s('account'))),
@@ -90,25 +91,40 @@ class _AccountScreenState extends State<AccountScreen> {
                         Text(user.email,
                             style: const TextStyle(
                                 color: Colors.white70, fontSize: 13)),
-                        if (user.isSuperAdmin)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 3),
-                              decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(20)),
-                              child: const Text('Super admin',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                      ]),
+                        Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          '${s('signed_in_as')} ${user.isSuperAdmin ? s('role_super_admin') : user.role == 'editor' ? s('role_editor') : s('role_temple_admin')}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ]),
                 ),
               ]),
             ),
+          if (temples.isNotEmpty) ...[
+            SectionTitle(s('your_access')),
+            for (final t in temples)
+              SoftCard(
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(t.isOwner ? Icons.verified_user_outlined : Icons.badge_outlined, color: t.isOwner ? Palette.kumkum : Palette.sky),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(t.name, style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 2),
+                      Text(t.isOwner ? s('access_owner') : s('access_manager'), style: TextStyle(fontWeight: FontWeight.w700, color: t.isOwner ? Palette.kumkum : Palette.sky)),
+                      const SizedBox(height: 2),
+                      Text(t.isOwner ? s('access_owner_hint') : s('access_manager_hint'), style: theme.textTheme.bodySmall),
+                    ]),
+                  ),
+                ]),
+              ),
+          ],
           SectionTitle(s('preferences')),
           ActionTile(
             icon: Icons.translate,
