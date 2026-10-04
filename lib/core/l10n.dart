@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'l10n/strings_admin.dart';
+import 'l10n/strings_money.dart';
+import 'l10n/strings_onboarding.dart';
+import 'l10n/strings_temple.dart';
 
 /// One interface language the app can show.
 class AppLanguage {
@@ -84,11 +88,29 @@ class S {
       S(Localizations.localeOf(context).languageCode);
 
   String call(String key, [Map<String, Object?> args = const {}]) {
-    var s = _table[key]?[code] ?? _table[key]?['en'] ?? key;
+    final entry = _entry(key);
+    var s = entry?[code] ?? entry?['en'] ?? key;
     for (final e in args.entries) {
       s = s.replaceAll('{${e.key}}', '${e.value}');
     }
     return s;
+  }
+
+  /// Tables kept per area of the app, so each stays readable.
+  static const List<Map<String, Map<String, String>>> _tables = [
+    _table,
+    kOnboardingStrings,
+    kTempleStrings,
+    kMoneyStrings,
+    kAdminStrings,
+  ];
+
+  static Map<String, String>? _entry(String key) {
+    for (final t in _tables) {
+      final e = t[key];
+      if (e != null) return e;
+    }
+    return null;
   }
 
   /// "3 people" / "1 person", in the current language.
